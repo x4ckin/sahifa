@@ -95,11 +95,13 @@ async def on_review(callback: CallbackQuery, session: AsyncSession, bot, setting
     if action == "ok":
         try:
             await orders.fulfil(session, order, clock(), admin_id=callback.from_user.id)
-        except DomainError:  # museum deleted meanwhile: order is now rejected, money must go back
+        except DomainError as e:  # museum deleted or already paid: order is rejected, money must go back
             await session.commit()
             await callback.answer()
-            await _safe(message.edit_caption(caption=caption + texts.REVIEW_MUSEUM_GONE, reply_markup=None))
-            await _safe(bot.send_message(order.user_id, texts.USER_MUSEUM_GONE))
+            gone = e.code == "museum_gone"
+            note = texts.REVIEW_MUSEUM_GONE if gone else texts.REVIEW_ALREADY_PAID
+            await _safe(message.edit_caption(caption=caption + note, reply_markup=None))
+            await _safe(bot.send_message(order.user_id, texts.USER_MUSEUM_GONE if gone else texts.USER_ALREADY_PAID))
             return
         await session.commit()
         await callback.answer()

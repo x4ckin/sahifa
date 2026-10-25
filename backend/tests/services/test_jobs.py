@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from sahifa.domain.pricing import Product
-from sahifa.models import Museum
+from sahifa.models import Museum, Order
 from sahifa.services.jobs import run_daily
 from sahifa.services.museums import add_media, create_museum
 from sahifa.services.orders import attach_receipt, create_order
@@ -28,8 +28,8 @@ async def test_daily_deletes_stale_drafts_but_keeps_paid_or_reviewed(session, no
     order = await create_order(session, user, Product.MUSEUM, with_receipt.id, "card", now - timedelta(days=9))
     await attach_receipt(session, order, tiny_jpeg(tmp_path / "r.jpg"), now - timedelta(days=9), receipts_dir=tmp_path / "rc")
     with_room = await create_museum(session, user, now - timedelta(days=9))
-    room = await create_order(session, user, Product.ROOM, with_room.id, "card", now - timedelta(days=9))
-    room.status = "paid"
+    session.add(Order(code="ROOM22", user_id=user.id, product="room", museum_id=with_room.id,
+                      method="card", status="paid"))  # e.g. a room paid before drafts lost room sales
     for m in (stale, with_receipt, with_room):
         m.updated_at = now - timedelta(days=8)
 

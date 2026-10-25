@@ -9,7 +9,7 @@ from sahifa.api.auth import current_user, get_session
 from sahifa.api.routes_museums import _spooled
 from sahifa.domain.lifecycle import DomainError
 from sahifa.domain.pricing import Product
-from sahifa.models import Order, User
+from sahifa.models import Museum, Order, User
 from sahifa.services import orders as svc
 from sahifa.services.media import MAX_IMAGE_BYTES
 from sahifa.services.settings_store import get_cards
@@ -53,7 +53,8 @@ async def create(body: OrderIn, request: Request, user: User = Depends(current_u
     order = await svc.create_order(s, user, product, body.museum_id, body.method, request.app.state.clock())
     out = order_out(order)
     if order.status == "pending" and order.method == "stars":
-        out["invoice_link"] = await request.app.state.invoice_link_factory(order)
+        rooms = (await s.get(Museum, order.museum_id)).extra_rooms if order.product == Product.MUSEUM else 0
+        out["invoice_link"] = await request.app.state.invoice_link_factory(order, rooms)
     elif order.method == "card" and order.status in ("pending", "rejected", "awaiting_review"):
         out["cards"] = await get_cards(s)
         out["comment"] = order.code

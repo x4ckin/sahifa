@@ -46,7 +46,7 @@ def build(settings: Settings) -> Runtime:
     app = create_app(
         settings,
         sm,
-        invoice_link_factory=lambda order: make_stars_invoice_link(bot, order),
+        invoice_link_factory=lambda order, rooms: make_stars_invoice_link(bot, order, rooms),
         receipt_notifier=make_receipt_notifier(bot, settings, sm),
         tg_uploader=make_tg_uploader(bot),
         tg_fetcher=make_tg_fetcher(bot),

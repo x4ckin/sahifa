@@ -28,7 +28,7 @@ STATUS_BY_CODE = {
     "telegram_unavailable": 503,
 }
 
-InvoiceLinkFactory = Callable[[Order], Awaitable[str]]
+InvoiceLinkFactory = Callable[[Order, int], Awaitable[str]]  # (order, extra rooms in it)
 ReceiptNotifier = Callable[[Order], Awaitable[None]]
 TgUploader = Callable[[int, Path, str], Awaitable[str]]  # (user_id, file, kind) -> Telegram file_id
 TgFetcher = Callable[[str], Awaitable[bytes]]  # file_id -> content (<= 20 MB), never written to disk

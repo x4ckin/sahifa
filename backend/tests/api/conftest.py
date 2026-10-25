@@ -44,7 +44,7 @@ class FakeHooks:
             raise DomainError("media_gone")
         return self.chat_files[file_id]
 
-    async def invoice_link(self, order) -> str:
+    async def invoice_link(self, order, rooms=0) -> str:
         return f"https://t.me/$invoice-{order.code}"
 
     async def notify_receipt(self, order) -> None:

@@ -19,8 +19,8 @@ log = logging.getLogger(__name__)
 router = Router(name="payments")
 
 
-async def make_stars_invoice_link(bot, order: Order) -> str:
-    title = PRODUCT_TITLES_UZ[Product(order.product)]
+async def make_stars_invoice_link(bot, order: Order, rooms: int = 0) -> str:
+    title = PRODUCT_TITLES_UZ[Product(order.product)] + (f" +{rooms} xona" if rooms else "")
     return await bot.create_invoice_link(
         title=title,
         description=f"Sahifa — {title}. Buyurtma {order.code}",
