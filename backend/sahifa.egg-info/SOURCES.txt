@@ -1,0 +1,7 @@
+pyproject.toml
+sahifa/__init__.py
+sahifa.egg-info/PKG-INFO
+sahifa.egg-info/SOURCES.txt
+sahifa.egg-info/dependency_links.txt
+sahifa.egg-info/requires.txt
+sahifa.egg-info/top_level.txt
