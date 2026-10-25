@@ -1,4 +1,5 @@
 import asyncio
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -221,3 +222,57 @@ async def delete_museum(s: AsyncSession, museum: Museum, now: datetime, media_di
         .values(status="rejected", reject_reason="museum_deleted")
     )
     await s.flush()
+
+
+_IMPORT_SUFFIX = {"image": ".webp", "video": ".mp4", "audio": ".m4a"}
+
+
+async def import_account_museum(
+    s: AsyncSession,
+    user: User,
+    settings_in: dict,
+    items: list[dict],
+    fetch,
+    secret: bytes,
+    now: datetime,
+    media_dir: Path,
+    voice_token: str | None = None,
+    music_token: str | None = None,
+) -> Museum:
+    """Copy a free, Telegram-held museum onto the server so it can be paid for and shared.
+
+    Every token must be this user's. On any failure the half-built museum is removed (files too)
+    and the error is re-raised; the caller's transaction is rolled back.
+    """
+    from sahifa.services.tgmedia import verify_media
+
+    def own(token: str, kinds: tuple[str, ...]) -> tuple[str, str]:
+        user_id, file_id, kind = verify_media(secret, token)
+        if user_id != user.id:
+            raise DomainError("bad_token")
+        if kind not in kinds:
+            raise DomainError("bad_format")
+        return file_id, kind
+
+    # check every token before touching Telegram or the disk
+    wall = [(own(i["token"], ("image", "video")), i) for i in items]
+    voice = own(voice_token, ("audio",))[0] if voice_token else None
+    music = own(music_token, ("audio",))[0] if music_token else None
+
+    museum = await create_museum(s, user, now)
+    try:
+        await update_settings(s, museum, settings_in, now)
+        with tempfile.TemporaryDirectory() as tmp:
+            for n, ((file_id, kind), item) in enumerate(wall):
+                src = Path(tmp) / f"{n}{_IMPORT_SUFFIX[kind]}"
+                src.write_bytes(await fetch(file_id))
+                await add_media(s, museum, src, kind, item.get("caption"), item.get("taken_on"), now, media_dir)
+            for file_id, setter in ((voice, set_voice), (music, set_music_file)):
+                if file_id:
+                    src = Path(tmp) / f"audio-{setter.__name__}.m4a"
+                    src.write_bytes(await fetch(file_id))
+                    await setter(s, museum, src, now, media_dir)
+    except BaseException:
+        await delete_museum(s, museum, now, media_dir=media_dir)
+        raise
+    return museum

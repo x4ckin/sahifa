@@ -198,3 +198,38 @@ async def put_music(
     user: User = Depends(current_user), s: AsyncSession = Depends(get_session),
 ):
     return await _put_audio(museum_id, request, file, user, s, svc.set_music_file)
+
+
+class ImportItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    token: Annotated[str, StringConstraints(max_length=1024)]
+    caption: Caption | None = None
+    taken_on: TakenOn | None = None
+
+
+class ImportIn(BaseModel):
+    """A free museum from the user's Telegram account, sent when they decide to gift it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    settings: SettingsIn
+    media: Annotated[list[ImportItem], Field(max_length=60)]
+    voice_token: Annotated[str, StringConstraints(max_length=1024)] | None = None
+    music_token: Annotated[str, StringConstraints(max_length=1024)] | None = None
+
+
+@router.post("/museums/import")
+async def import_museum(
+    body: ImportIn, request: Request, user: User = Depends(current_user), s: AsyncSession = Depends(get_session)
+):
+    from sahifa.services.tgmedia import media_secret
+
+    state = request.app.state
+    m = await svc.import_account_museum(
+        s, user, body.settings.model_dump(exclude_unset=True), [i.model_dump() for i in body.media],
+        state.tg_fetcher, media_secret(state.settings.bot_token), state.clock(), state.settings.media_dir,
+        voice_token=body.voice_token, music_token=body.music_token,
+    )
+    await s.commit()
+    return await _full(request, s, m)
