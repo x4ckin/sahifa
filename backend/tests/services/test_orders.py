@@ -126,7 +126,7 @@ async def test_switching_method_cancels_pending_but_keeps_receipt_under_review(s
     assert (card.status, stars.status) == ("cancelled", "pending")
 
     card2 = await create_order(session, user, Product.ROOM, m.id, "card", now)
-    await attach_receipt(session, card2, tiny_jpeg(tmp_path / "r.jpg"), now, media_dir=tmp_path)
+    await attach_receipt(session, card2, tiny_jpeg(tmp_path / "r.jpg"), now, receipts_dir=tmp_path / "receipts")
     again = await create_order(session, user, Product.ROOM, m.id, "stars", now)
     assert again.code == card2.code  # a receipt is being checked: never take a second payment
 
@@ -135,7 +135,7 @@ async def test_fulfil_on_deleted_museum_fails_cleanly(session, now, tmp_path):
     user = await make_user(session)
     m = await create_museum(session, user, now)
     order = await create_order(session, user, Product.MUSEUM, m.id, "card", now)
-    await attach_receipt(session, order, tiny_jpeg(tmp_path / "r.jpg"), now, media_dir=tmp_path)
+    await attach_receipt(session, order, tiny_jpeg(tmp_path / "r.jpg"), now, receipts_dir=tmp_path / "receipts")
     m.status = "deleted"  # deleted after the receipt was sent
     with pytest.raises(DomainError) as err:
         await fulfil(session, order, now, admin_id=999)
@@ -177,16 +177,16 @@ async def test_receipt_reject_and_refund(session, now, tmp_path):
     user = await make_user(session)
     m = await create_museum(session, user, now)
     order = await create_order(session, user, Product.MUSEUM, m.id, "card", now)
-    await attach_receipt(session, order, tiny_jpeg(tmp_path / "r.jpg"), now, media_dir=tmp_path)
-    assert order.status == "awaiting_review" and (tmp_path / order.receipt_path).exists()
+    await attach_receipt(session, order, tiny_jpeg(tmp_path / "r.jpg"), now, receipts_dir=tmp_path / "receipts")
+    assert order.status == "awaiting_review" and (tmp_path / "receipts" / order.receipt_path).exists()
     await reject(session, order, admin_id=999, reason="amount", now=now)
     assert (order.status, order.reject_reason, order.admin_id) == ("rejected", "amount", 999)
-    await attach_receipt(session, order, tiny_jpeg(tmp_path / "r2.jpg"), now, media_dir=tmp_path)
+    await attach_receipt(session, order, tiny_jpeg(tmp_path / "r2.jpg"), now, receipts_dir=tmp_path / "receipts")
     assert order.status == "awaiting_review"
 
     stars = await create_order(session, user, Product.SLOTS, None, "stars", now)
     with pytest.raises(DomainError):
-        await attach_receipt(session, stars, tiny_jpeg(tmp_path / "r3.jpg"), now, media_dir=tmp_path)
+        await attach_receipt(session, stars, tiny_jpeg(tmp_path / "r3.jpg"), now, receipts_dir=tmp_path / "receipts")
     await fulfil(session, stars, now, charge_id="c1")
     await mark_refunded(session, stars, admin_id=999, now=now)
     assert stars.status == "refunded"

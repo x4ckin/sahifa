@@ -146,17 +146,18 @@ async def fulfil(
 
 
 async def attach_receipt(
-    s: AsyncSession, order: Order, src: Path, now: datetime, media_dir: Path
+    s: AsyncSession, order: Order, src: Path, now: datetime, receipts_dir: Path
 ) -> Order:
+    """Receipts hold card/bank details: keep them in `receipts_dir`, never under public media."""
     if order.method != "card" or order.status not in ("pending", "rejected"):
         raise DomainError("bad_order")
     if order.reject_reason == "museum_gone":
         raise DomainError("museum_gone")
-    main, thumb = process_image(src, media_dir / "receipts")
+    main, thumb = process_image(src, receipts_dir)
     thumb.unlink(missing_ok=True)
     if order.receipt_path:
-        (media_dir / order.receipt_path).unlink(missing_ok=True)
-    order.receipt_path = main.relative_to(media_dir).as_posix()
+        (receipts_dir / order.receipt_path).unlink(missing_ok=True)
+    order.receipt_path = main.name
     order.status, order.reject_reason = "awaiting_review", None
     await s.flush()
     return order
