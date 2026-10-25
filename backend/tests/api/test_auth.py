@@ -37,5 +37,6 @@ async def test_api_requires_valid_header(client, auth, settings, now):
     r = await client.get("/api/me", headers=auth(1, "Ali", language_code="ru"))
     assert r.status_code == 200
     assert r.json() == {
-        "id": 1, "first_name": "Ali", "lang": "ru", "is_free": False, "slots": {"used": 0, "total": 10}
+        "id": 1, "first_name": "Ali", "lang": "ru", "is_free": False, "slots": {"used": 0, "total": 10},
+        "bot_username": "SahifaTestBot",
     }

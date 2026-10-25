@@ -54,7 +54,9 @@ def create_app(
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     max_body_bytes: int = 60 * 2**20,
 ) -> FastAPI:
-    from sahifa.api import routes_me, routes_museums, routes_orders, routes_public, routes_tgmedia, routes_transfers
+    from sahifa.api import (
+        routes_me, routes_museums, routes_orders, routes_prices, routes_public, routes_tgmedia, routes_transfers,
+    )
 
     app = FastAPI(title="Sahifa API", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
@@ -84,7 +86,7 @@ def create_app(
     async def _domain_error(_: Request, exc: DomainError):
         return JSONResponse({"error": exc.code}, status_code=STATUS_BY_CODE.get(exc.code, 400))
 
-    for module in (routes_me, routes_museums, routes_orders, routes_transfers, routes_public, routes_tgmedia):
+    for module in (routes_me, routes_museums, routes_orders, routes_transfers, routes_public, routes_tgmedia, routes_prices):
         app.include_router(module.router, prefix="/api")
 
     settings.media_dir.mkdir(parents=True, exist_ok=True)

@@ -18,4 +18,5 @@ async def me(request: Request, user: User = Depends(current_user), s: AsyncSessi
         "lang": user.lang,
         "is_free": is_free_now(user, now),
         "slots": {"used": used, "total": total},
+        "bot_username": request.app.state.settings.bot_username,
     }
