@@ -13,3 +13,11 @@ async def test_runtime_wires_api_and_bot(settings):
     assert {r.name for r in rt.dp.sub_routers} == {"start", "payments", "review", "admin"}
     await rt.bot.session.close()
     await rt.engine.dispose()
+
+
+def test_runtime_wires_tg_media(settings):
+    from sahifa.main import build
+
+    rt = build(settings)
+    assert rt.app.state.tg_uploader.__name__ == "upload"
+    assert rt.app.state.tg_fetcher.__name__ == "fetch"

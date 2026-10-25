@@ -177,7 +177,7 @@ istalgan qurilmada (telefon, kompyuter) ochiladi; egasining o'zi uchun **muddats
   (aks holda sovg'aga aylantirib bo'lmaydi). Foydalanuvchi bot chatini o'chirsa, bepul muzey
   media'si yo'qoladi — ilovada ogohlantiriladi.
 - 10 ta muzey limiti (§4.1) bepul akkaunt-muzeylarga ham taalluqli (CloudStorage hajmi ham
-  shuni talab qiladi). Qoralama 7 kunlik o'chirish qoidasi endi qo'llanmaydi — serverda qoralama yo'q.
+  shuni talab qiladi). Serverda qoralama faqat to'lov jarayonida paydo bo'ladi (`POST /api/museums/import`); u to'lanmasa 7 kundan keyin o'chiriladi — akkauntdagi bepul nusxa saqlanib qoladi.
 
 ## 5. Mening qarorlarim (egasi so'ramagan; o'zgartirish mumkin)
 

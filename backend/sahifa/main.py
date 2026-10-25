@@ -15,6 +15,7 @@ from sahifa.api.app import create_app
 from sahifa.bot.payments import make_stars_invoice_link
 from sahifa.bot.review import make_receipt_notifier
 from sahifa.bot.setup import BOT_DEFAULTS, build_dispatcher
+from sahifa.bot.tgfiles import make_tg_fetcher, make_tg_uploader
 from sahifa.config import Settings, get_settings
 from sahifa.db import init_db, make_engine, make_sessionmaker
 from sahifa.services.jobs import run_daily
@@ -47,6 +48,8 @@ def build(settings: Settings) -> Runtime:
         sm,
         invoice_link_factory=lambda order: make_stars_invoice_link(bot, order),
         receipt_notifier=make_receipt_notifier(bot, settings, sm),
+        tg_uploader=make_tg_uploader(bot),
+        tg_fetcher=make_tg_fetcher(bot),
     )
     return Runtime(settings, engine, sm, bot, dp, app)
 

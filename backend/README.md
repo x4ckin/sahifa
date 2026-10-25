@@ -18,6 +18,14 @@ cd backend && ../.venv/Scripts/python -m sahifa.main
 
 Tests: `cd backend && ../.venv/Scripts/python -m pytest -q`
 
+## Free museums live in Telegram
+
+An unpaid museum is not stored on this server. Its settings sit in the Mini App's Telegram
+CloudStorage; its photos/videos are sent by the bot into the user's own chat
+(`POST /api/tg-media` returns a signed token) and shown through `GET /api/tg-media/{token}`,
+which streams from Telegram without writing to disk. Files must be ≤ 20 MB (Bot API limit).
+When the user gifts it, `POST /api/museums/import` copies it into a normal server museum.
+
 ## Settings (`SAHIFA_*`)
 
 | Variable | Meaning |
