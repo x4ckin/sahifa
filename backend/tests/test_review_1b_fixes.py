@@ -89,7 +89,7 @@ def test_media_key_survives_bot_token_rotation(settings):
 async def test_import_counts_limits_before_fetching(client, auth, hooks):
     token = (await _upload(client, auth(7))).json()["token"]
     hooks.fetches = 0
-    r = await client.post("/api/museums/import", json={"settings": {}, "media": [{"token": token}] * 31}, headers=auth(7))
+    r = await client.post("/api/museums/import", json={"settings": {}, "media": [{"token": token}] * 131}, headers=auth(7))
     assert (r.status_code, r.json()) == (409, {"error": "media_full"})
     assert hooks.fetches == 0
 

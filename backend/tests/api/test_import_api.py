@@ -47,9 +47,9 @@ async def test_import_cleans_up_when_media_gone(client, auth, hooks, sessionmake
 async def test_import_respects_limits(client, auth):
     h = auth(7)
     token = (await _tokens(client, h, 1))[0]
-    r = await client.post("/api/museums/import", json={"settings": {}, "media": [{"token": token}] * 31}, headers=h)
+    r = await client.post("/api/museums/import", json={"settings": {}, "media": [{"token": token}] * 131}, headers=h)
     assert (r.status_code, r.json()) == (409, {"error": "media_full"})
-    r = await client.post("/api/museums/import", json={"settings": {}, "media": [{"token": token}] * 61}, headers=h)
+    r = await client.post("/api/museums/import", json={"settings": {}, "media": [{"token": token}] * 156}, headers=h)
     assert (r.status_code, r.json()) == (400, {"error": "bad_field"})
 
 

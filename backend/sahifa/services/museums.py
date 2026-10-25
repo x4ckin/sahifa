@@ -11,6 +11,7 @@ from sahifa.domain.lifecycle import (
     MuseumState,
     limits_for,
     locked_fields,
+    rooms_needed,
     validate_open_at,
 )
 from sahifa.models import MediaItem, Museum, Order, User
@@ -261,14 +262,13 @@ async def import_account_museum(
 
     # check every token, and the limits, before touching Telegram or the disk
     wall = [(own(i["token"], ("image", "video")), i) for i in items]
-    base = limits_for(0)
     images = sum(kind == "image" for (_, kind), _ in wall)
-    if images > base.images or len(wall) - images > base.videos:
-        raise DomainError("media_full")
+    rooms = rooms_needed(images, len(wall) - images)  # paid together with the museum
     voice = own(voice_token, ("audio",))[0] if voice_token else None
     music = own(music_token, ("audio",))[0] if music_token else None
 
     museum = await create_museum(s, user, now)
+    museum.extra_rooms = rooms
     try:
         await update_settings(s, museum, settings_in, now)
         with tempfile.TemporaryDirectory() as tmp:

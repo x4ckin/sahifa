@@ -214,7 +214,7 @@ class ImportIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     settings: SettingsIn
-    media: Annotated[list[ImportItem], Field(max_length=60)]
+    media: Annotated[list[ImportItem], Field(max_length=155)]  # 130 photos + 25 videos
     voice_token: Annotated[str, StringConstraints(max_length=1024)] | None = None
     music_token: Annotated[str, StringConstraints(max_length=1024)] | None = None
 

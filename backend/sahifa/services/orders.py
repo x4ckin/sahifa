@@ -95,6 +95,10 @@ async def create_order(
 
     order.amount_uzs = await get_price(s, product, "uzs")
     order.amount_stars = await get_price(s, product, "stars")
+    if product == Product.MUSEUM:  # rooms a big museum was imported with are paid in the same order
+        rooms = (await s.get(Museum, museum_id)).extra_rooms
+        order.amount_uzs += rooms * await get_price(s, Product.ROOM, "uzs")
+        order.amount_stars += rooms * await get_price(s, Product.ROOM, "stars")
     s.add(order)
     await s.flush()
     return order
