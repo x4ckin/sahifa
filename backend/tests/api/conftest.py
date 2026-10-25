@@ -21,6 +21,28 @@ def sign_init_data(user: dict, bot_token: str, auth_date: int) -> str:
 class FakeHooks:
     def __init__(self):
         self.receipts: list[str] = []
+        self.chat_files: dict[str, bytes] = {}  # file_id -> content, i.e. the user's Telegram chat
+        self.uploaded_paths: list = []
+        self.fetches = 0
+        self.blocked: set[int] = set()
+
+    async def tg_upload(self, user_id, path, kind) -> str:
+        from sahifa.domain.lifecycle import DomainError
+
+        if user_id in self.blocked:
+            raise DomainError("start_bot")
+        self.uploaded_paths.append(path)
+        file_id = f"F{len(self.chat_files)}_{user_id}"
+        self.chat_files[file_id] = path.read_bytes()
+        return file_id
+
+    async def tg_fetch(self, file_id) -> bytes:
+        from sahifa.domain.lifecycle import DomainError
+
+        self.fetches += 1
+        if file_id not in self.chat_files:
+            raise DomainError("media_gone")
+        return self.chat_files[file_id]
 
     async def invoice_link(self, order) -> str:
         return f"https://t.me/$invoice-{order.code}"
@@ -41,6 +63,8 @@ def app(settings, sessionmaker, now, hooks):
         sessionmaker,
         invoice_link_factory=hooks.invoice_link,
         receipt_notifier=hooks.notify_receipt,
+        tg_uploader=hooks.tg_upload,
+        tg_fetcher=hooks.tg_fetch,
         clock=lambda: now,
     )
 
