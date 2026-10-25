@@ -11,6 +11,22 @@ def now() -> datetime:
 
 
 @pytest.fixture
+async def sessionmaker():
+    from sahifa.db import init_db, make_engine, make_sessionmaker
+
+    engine = make_engine("sqlite+aiosqlite:///:memory:")
+    await init_db(engine)
+    yield make_sessionmaker(engine)
+    await engine.dispose()
+
+
+@pytest.fixture
+async def session(sessionmaker):
+    async with sessionmaker() as s:
+        yield s
+
+
+@pytest.fixture
 def settings(tmp_path) -> Settings:
     return Settings(
         _env_file=None,
