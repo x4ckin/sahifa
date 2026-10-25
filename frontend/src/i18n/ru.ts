@@ -26,10 +26,13 @@ export default {
     badge_received: "🎁 Передан вам",
     slots_full: "Лимит музеев исчерпан ({used}/{total}).",
     buy_slots: "+5 музеев — {price} сум",
+    buy_slots_card: "💳 +5 музеев — {price} сум",
+    buy_slots_stars: "⭐ +5 музеев — {n} ⭐",
     counts: "{img} фото · {vid} видео",
   },
   create: {
     title: "Новый музей",
+    default_title: "Наш музей",
     step_media: "Фото и видео",
     step_decor: "Оформление",
     step_review: "Просмотр",

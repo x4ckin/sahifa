@@ -26,10 +26,13 @@ export default {
     badge_received: "🎁 Sizga topshirilgan",
     slots_full: "Muzeylar soni to'ldi ({used}/{total}).",
     buy_slots: "+5 muzey — {price} so'm",
+    buy_slots_card: "💳 +5 muzey — {price} so'm",
+    buy_slots_stars: "⭐ +5 muzey — {n} ⭐",
     counts: "{img} surat · {vid} video",
   },
   create: {
     title: "Yangi muzey",
+    default_title: "Bizning muzeyimiz",
     step_media: "Suratlar va videolar",
     step_decor: "Bezash",
     step_review: "Ko'rib chiqish",
