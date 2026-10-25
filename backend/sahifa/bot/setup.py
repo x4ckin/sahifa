@@ -27,9 +27,9 @@ def build_dispatcher(
     settings: Settings,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> Dispatcher:
-    from sahifa.bot import payments, start
+    from sahifa.bot import admin, payments, review, start
 
     dp = Dispatcher(settings=settings, clock=clock)
     dp.update.outer_middleware(SessionMiddleware(sessionmaker))
-    dp.include_routers(start.router, payments.router)
+    dp.include_routers(start.router, payments.router, review.router, admin.router)
     return dp

@@ -33,3 +33,25 @@ PAID = "✅ To'lov qabul qilindi! «{product}» faollashtirildi."
 PAYMENT_REFUNDED = (
     "Bu to'lov qayta yuborilgan yoki muzey o'chirilgan edi — yulduzlaringiz qaytarildi."
 )
+
+BTN_APPROVE = "✅ Tasdiqlash"
+REJECT_REASONS = {
+    "amount": "Summa noto'g'ri",
+    "unreadable": "Chek o'qilmaydi",
+    "notfound": "To'lov topilmadi",
+}
+RECEIPT_CAPTION = (
+    "🧾 <b>Yangi chek</b> — <code>{code}</code>\n"
+    "👤 {user} (<code>{user_id}</code>)\n"
+    "🛒 {product}\n"
+    "🏛 {museum}\n"
+    "💰 {amount} so'm"
+)
+REVIEW_APPROVED = "\n\n✅ Tasdiqlandi — {admin}"
+REVIEW_REJECTED = "\n\n❌ Rad etildi ({reason}) — {admin}"
+REVIEW_MUSEUM_GONE = "\n\n⚠️ Muzey o'chirilgan — pulni foydalanuvchiga qaytaring!"
+REVIEW_ALREADY = "Bu buyurtma allaqachon ko'rib chiqilgan."
+NOT_ADMIN = "Bu amal faqat adminlar uchun."
+USER_APPROVED = "✅ To'lovingiz tasdiqlandi! «{product}» faollashtirildi."
+USER_REJECTED = "❌ Chekingiz qabul qilinmadi: {reason}.\nIltimos, tekshirib, chekni qayta yuboring."
+BTN_RESEND = "🧾 Chekni qayta yuborish"

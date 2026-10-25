@@ -9,6 +9,10 @@ class FakeBot:
         self.sent: list[tuple[int, str, object]] = []
         self.refunds: list[tuple[int, str]] = []
         self.invoices: list[dict] = []
+        self.photos: list[tuple] = []
+
+    async def send_photo(self, chat_id, photo, caption=None, reply_markup=None, **_):
+        self.photos.append((chat_id, photo, caption, reply_markup))
 
     async def send_message(self, chat_id, text, reply_markup=None, **_):
         self.sent.append((chat_id, text, reply_markup))
@@ -39,6 +43,7 @@ def fake_message(uid=1, text="/start", **extra):
 def fake_callback(uid, data):
     cb = SimpleNamespace(from_user=tg_user(uid), data=data, message=fake_message(uid))
     cb.answer = AsyncMock()
+    cb.message.html_text = "🧾 chek"
     cb.message.edit_text = AsyncMock()
     cb.message.edit_caption = AsyncMock()
     cb.message.edit_reply_markup = AsyncMock()

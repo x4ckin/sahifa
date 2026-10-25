@@ -77,4 +77,4 @@ def test_dispatcher_builds(sessionmaker, settings):
     from sahifa.bot.setup import build_dispatcher
 
     dp = build_dispatcher(sessionmaker, settings)
-    assert {r.name for r in dp.sub_routers} >= {"start", "payments"}
+    assert {r.name for r in dp.sub_routers} == {"start", "payments", "review", "admin"}
