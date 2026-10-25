@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -38,6 +39,7 @@ def create_app(
     invoice_link_factory: InvoiceLinkFactory,
     receipt_notifier: ReceiptNotifier,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    max_body_bytes: int = 60 * 2**20,
 ) -> FastAPI:
     from sahifa.api import routes_me, routes_museums, routes_orders, routes_public, routes_transfers
 
@@ -55,6 +57,10 @@ def create_app(
         allow_headers=["Content-Type", "X-Telegram-Init-Data"],
     )
 
+    @app.exception_handler(RequestValidationError)
+    async def _validation_error(_: Request, exc: RequestValidationError):
+        return JSONResponse({"error": "bad_field"}, status_code=400)
+
     @app.exception_handler(AuthError)
     async def _auth_error(_: Request, exc: AuthError):
         return JSONResponse({"error": "unauthorized"}, status_code=401)
@@ -68,4 +74,38 @@ def create_app(
 
     settings.media_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
-    return app
+    return BodyLimit(app, max_body_bytes)
+
+
+class BodyLimit:
+    """Refuse oversized bodies before anything parses them (multipart is spooled before auth runs).
+
+    Bodies must declare Content-Length; browsers and Telegram's WebView always do for fetch/FormData.
+    """
+
+    def __init__(self, app, max_bytes: int):
+        self.app, self.max_bytes = app, max_bytes
+        self.state = app.state  # keep `app.state` reachable for callers and tests
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope["method"] in ("POST", "PUT", "PATCH"):
+            length = dict(scope["headers"]).get(b"content-length")
+            if length is None or not length.isdigit():
+                return await JSONResponse({"error": "length_required"}, status_code=411)(scope, receive, send)
+            if int(length) > self.max_bytes:
+                return await JSONResponse({"error": "too_large"}, status_code=413)(scope, receive, send)
+            receive = self._capped(receive)
+        await self.app(scope, receive, send)
+
+    def _capped(self, receive):
+        seen = 0
+
+        async def wrapped():
+            nonlocal seen
+            message = await receive()
+            seen += len(message.get("body", b""))
+            if seen > self.max_bytes:  # body longer than its Content-Length claimed
+                return {"type": "http.disconnect"}
+            return message
+
+        return wrapped

@@ -5,7 +5,6 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import select
 
-from sahifa.db import make_sessionmaker
 from sahifa.domain.lifecycle import DomainError
 from sahifa.domain.pricing import Product
 from sahifa.models import Museum, Order

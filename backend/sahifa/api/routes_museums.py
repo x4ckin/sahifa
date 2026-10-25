@@ -1,11 +1,12 @@
 import shutil
 import tempfile
 from contextlib import contextmanager
-from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
-from pydantic import BaseModel, ConfigDict
+from typing import Annotated
+
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,14 +24,32 @@ class CreateIn(BaseModel):
     template: str | None = None
 
 
+Key = Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]{1,32}$")]
+Caption = Annotated[str, StringConstraints(max_length=200)]
+TakenOn = Annotated[str, StringConstraints(max_length=32)]
+
+
 class SettingsIn(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    """Free text is length-capped; theme/mascot/style/music are asset keys, never raw markup."""
+
+    model_config = ConfigDict(extra="forbid", strict=False)
+
+    title: Annotated[str, StringConstraints(min_length=1, max_length=80)] | None = None
+    recipient_name: Annotated[str, StringConstraints(max_length=60)] | None = None
+    letter_text: Annotated[str, StringConstraints(max_length=3000)] | None = None
+    theme: Key | None = None
+    mascot: Key | None = None
+    opening_style: Key | None = None
+    music_id: Key | None = None
+    open_at: AwareDatetime | None = None
 
 
 class MediaPatch(BaseModel):
-    caption: str | None = None
-    taken_on: str | None = None
-    position: int | None = None
+    model_config = ConfigDict(extra="forbid")
+
+    caption: Caption | None = None
+    taken_on: TakenOn | None = None
+    position: Annotated[int, Field(ge=0, le=10_000)] | None = None
 
 
 @contextmanager
@@ -99,13 +118,6 @@ async def patch(
     user: User = Depends(current_user), s: AsyncSession = Depends(get_session),
 ):
     changes = body.model_dump(exclude_unset=True)
-    if isinstance(changes.get("open_at"), str):
-        try:
-            changes["open_at"] = datetime.fromisoformat(changes["open_at"])
-        except ValueError as e:
-            raise DomainError("open_at") from e
-        if changes["open_at"].tzinfo is None:
-            raise DomainError("open_at")
     m = await svc.get_owned(s, user, museum_id)
     await svc.update_settings(s, m, changes, request.app.state.clock())
     await s.commit()
@@ -125,8 +137,8 @@ async def upload_media(
     museum_id: int,
     request: Request,
     file: UploadFile = File(...),
-    caption: str | None = Form(None),
-    taken_on: str | None = Form(None),
+    caption: str | None = Form(None, max_length=200),
+    taken_on: str | None = Form(None, max_length=32),
     user: User = Depends(current_user),
     s: AsyncSession = Depends(get_session),
 ):

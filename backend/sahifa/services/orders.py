@@ -1,3 +1,4 @@
+import asyncio
 import secrets
 from datetime import datetime
 from pathlib import Path
@@ -164,7 +165,7 @@ async def attach_receipt(
         museum = await s.get(Museum, order.museum_id)
         if museum is None or museum.status == MuseumState.DELETED:
             raise DomainError("museum_gone")
-    main, thumb = process_image(src, receipts_dir)
+    main, thumb = await asyncio.to_thread(process_image, src, receipts_dir)
     thumb.unlink(missing_ok=True)
     if order.receipt_path:
         (receipts_dir / order.receipt_path).unlink(missing_ok=True)

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from pathlib import Path
 
@@ -147,7 +148,7 @@ async def add_media(
 
     out_dir = media_dir / str(museum.id)
     if kind == "image":
-        main, thumb = process_image(src, out_dir)
+        main, thumb = await asyncio.to_thread(process_image, src, out_dir)
     else:
         main, thumb = await process_video(src, out_dir)
 
