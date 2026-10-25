@@ -82,8 +82,9 @@ async def update_settings(s: AsyncSession, museum: Museum, changes: dict, now: d
     unknown = set(changes) - SETTINGS_FIELDS
     if unknown:
         raise DomainError("bad_field", ",".join(sorted(unknown)))
-    _ensure_unlocked(museum, {_LOCK_NAME.get(k, k) for k in changes})
-    if changes.get("open_at") is not None:
+    changed = {k for k, v in changes.items() if getattr(museum, k) != v}
+    _ensure_unlocked(museum, {_LOCK_NAME.get(k, k) for k in changed})
+    if "open_at" in changed and changes["open_at"] is not None:
         validate_open_at(now, changes["open_at"])
     for key, value in changes.items():
         setattr(museum, key, value)
@@ -214,7 +215,8 @@ async def delete_museum(s: AsyncSession, museum: Museum, now: datetime, media_di
     museum.updated_at = now
     await s.execute(
         update(Order)
-        .where(Order.museum_id == museum.id, Order.status.in_(("pending", "awaiting_review")))
+        # only unpaid ones: a receipt under review means money was sent, the admin must see it
+        .where(Order.museum_id == museum.id, Order.status == "pending")
         .values(status="rejected", reject_reason="museum_deleted")
     )
     await s.flush()

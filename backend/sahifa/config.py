@@ -15,15 +15,15 @@ class Settings(BaseSettings):
     admin_chat_id: int = 0
     database_url: str = "sqlite+aiosqlite:///./data/sahifa.db"
     media_dir: Path = Path("./data/media")
+    public_api_url: str = "http://localhost:8000"
+    webapp_url: str = "http://localhost:5173"
+    api_host: str = "127.0.0.1"
+    api_port: int = 8000
 
     @property
     def receipts_dir(self) -> Path:
         """Private: payment receipts contain card details and are never served."""
         return self.media_dir.parent / "receipts"
-    public_api_url: str = "http://localhost:8000"
-    webapp_url: str = "http://localhost:5173"
-    api_host: str = "127.0.0.1"
-    api_port: int = 8000
 
 
 @lru_cache

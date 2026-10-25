@@ -77,6 +77,8 @@ def reactivated_expiry(now: datetime, expires_at: datetime | None) -> datetime:
 
 
 def validate_open_at(now: datetime, open_at: datetime) -> None:
+    if not isinstance(open_at, datetime) or open_at.tzinfo is None:
+        raise DomainError("open_at")
     if open_at <= now or open_at > now + ACTIVE_PERIOD:
         raise DomainError("open_at")
 

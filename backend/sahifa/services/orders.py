@@ -60,6 +60,9 @@ async def create_order(
     if method not in ("stars", "card"):
         raise DomainError("bad_order")
     await _check_target(s, user, product, museum_id)
+    free = is_free_now(user, now)
+    if free and product == Product.SLOTS:
+        raise DomainError("not_needed")  # free users have no museum limit
 
     open_orders = (
         await s.scalars(
@@ -71,7 +74,7 @@ async def create_order(
             )
         )
     ).all()
-    for order in open_orders:
+    for order in [] if free else open_orders:
         # a receipt under review, or the same method again: never open a second payment
         if order.status == "awaiting_review" or order.method == method:
             return order
@@ -82,7 +85,7 @@ async def create_order(
         code=await _new_code(s), user_id=user.id, product=product, museum_id=museum_id,
         method=method, created_at=now,
     )
-    if is_free_now(user, now):
+    if free:
         order.method = "free"
         s.add(order)
         await s.flush()
@@ -114,8 +117,12 @@ async def fulfil(
     If the museum is gone the order is marked rejected (flushed) and DomainError("museum_gone")
     is raised — callers commit before reporting it.
     """
-    if order.status == "paid":
-        return order
+    if order.status == "paid" and not (charge_id and order.charge_id and charge_id != order.charge_id):
+        return order  # the same payment delivered again
+    if order.status in ("paid", "refunded"):
+        # a second, different charge for one order: grant nothing, caller refunds it
+        await audit.log(s, order.user_id, "duplicate_payment", code=order.code, charge_id=charge_id)
+        raise DomainError("duplicate_payment")
     product = Product(order.product)
 
     if product == Product.SLOTS:
@@ -133,6 +140,8 @@ async def fulfil(
             open_at = museum.open_at if museum.open_at and museum.open_at > now else None
             museum.active_from, museum.expires_at = activation_window(now, open_at)
             museum.paid_at, museum.status = now, MuseumState.ACTIVE
+        elif order.method == "free":  # free users renew to now+120d, never stack
+            museum.expires_at = max(museum.expires_at or now, activation_window(now, None)[1])
         else:  # REACTIVATE, or a museum payment that raced an earlier one: extend
             museum.expires_at = reactivated_expiry(now, museum.expires_at)
             museum.status = MuseumState.ACTIVE
@@ -151,8 +160,10 @@ async def attach_receipt(
     """Receipts hold card/bank details: keep them in `receipts_dir`, never under public media."""
     if order.method != "card" or order.status not in ("pending", "rejected"):
         raise DomainError("bad_order")
-    if order.reject_reason == "museum_gone":
-        raise DomainError("museum_gone")
+    if order.museum_id is not None:
+        museum = await s.get(Museum, order.museum_id)
+        if museum is None or museum.status == MuseumState.DELETED:
+            raise DomainError("museum_gone")
     main, thumb = process_image(src, receipts_dir)
     thumb.unlink(missing_ok=True)
     if order.receipt_path:
