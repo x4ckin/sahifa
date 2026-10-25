@@ -35,7 +35,9 @@ const rows = computed<Row[]>(() => {
   const list: Row[] = locals.value.map((m) => {
     const img = m.media.filter((x) => x.k === "image").length;
     const counts = t("home.counts", { img, vid: m.media.length - img });
-    const gifted = m.gift?.state === "paid" ? byId.get(m.gift.draft) : undefined;
+    const server = m.gift ? byId.get(m.gift.draft) : undefined;
+    // a draft the server already calls paid was paid; the app just closed before it could remember
+    const gifted = server && (m.gift?.state === "paid" || server.status !== "draft") ? server : undefined;
     if (m.gift) linked.add(m.gift.draft);
     if (m.broken) return { key: m.id, title: m.title, subtitle: "", badge: t("home.badge_broken"), tone: "muted", to: `/local/${m.id}` };
     if (!gifted) return { key: m.id, title: m.title, subtitle: counts, badge: t("home.badge_free"), tone: "free", to: `/local/${m.id}` };
@@ -75,8 +77,20 @@ onMounted(async () => {
   } catch (e) {
     if (tg.available()) error.value = errorText(e instanceof ApiError ? e.code : "unknown");
   }
+  void healPaidDrafts();
   void collectGarbage().catch(() => 0);
 });
+
+/** Remember payments the app could not record (closed during checkout, failed save). */
+async function healPaidDrafts() {
+  const byId = new Map(servers.value.map((m) => [m.id, m]));
+  for (const m of locals.value) {
+    const server = m.gift?.state === "draft" ? byId.get(m.gift.draft) : undefined;
+    if (!server || server.status === "draft") continue;
+    m.gift = { ...m.gift!, state: "paid" };
+    await saveMuseum(JSON.parse(JSON.stringify(m))).catch(() => undefined);
+  }
+}
 
 async function start(template: TemplateKey) {
   if (full.value || busy.value) return;

@@ -64,7 +64,12 @@ async def create(body: OrderIn, request: Request, user: User = Depends(current_u
 
 @router.get("/orders/{code}")
 async def get(code: str, user: User = Depends(current_user), s: AsyncSession = Depends(get_session)):
-    return order_out(await _own_order(s, user, code))
+    order = await _own_order(s, user, code)
+    out = order_out(order)
+    if order.method == "card" and order.status in ("pending", "rejected", "cancelled"):
+        out["cards"] = await get_cards(s)  # the screen may be reopened later: it needs the details again
+        out["comment"] = order.code
+    return out
 
 
 @router.post("/orders/{code}/receipt")

@@ -30,6 +30,14 @@ export function useLocalMuseum(id: string) {
     }
   }
 
+  /** Save now and throw on failure — for steps that must not continue without a stored state. */
+  async function save(): Promise<void> {
+    clearTimeout(timer);
+    timer = undefined;
+    if (!museum.value || museum.value.broken) throw new Error("broken");
+    await saveMuseum(JSON.parse(JSON.stringify(museum.value)) as LocalMuseum);
+  }
+
   function changed(): void {
     clearTimeout(timer);
     timer = setTimeout(() => void flush(), SAVE_DEBOUNCE_MS);
@@ -39,5 +47,5 @@ export function useLocalMuseum(id: string) {
     if (timer !== undefined) void flush();
   });
 
-  return { museum, loading, error, ready, changed, flush };
+  return { museum, loading, error, ready, changed, flush, save };
 }

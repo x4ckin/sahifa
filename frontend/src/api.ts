@@ -62,7 +62,7 @@ export interface MuseumFull extends MuseumSummary, MuseumSettings {
 }
 export interface OrderOut {
   code: string;
-  status: "pending" | "awaiting_review" | "paid" | "rejected" | "cancelled" | "refunded";
+  status: "pending" | "awaiting_review" | "reviewing" | "paid" | "rejected" | "cancelled" | "refunded";
   product: Product;
   method: PayMethod | "free";
   museum_id: number | null;
@@ -146,7 +146,8 @@ export const api = {
   getMuseum: (id: number) => request<MuseumFull>(`/api/museums/${id}`),
   patchMuseum: (id: number, changes: Record<string, unknown>) =>
     request<MuseumFull>(`/api/museums/${id}`, { method: "PATCH", body: changes }),
-  deleteMuseum: (id: number) => request<{ ok: true }>(`/api/museums/${id}`, { method: "DELETE" }),
+  deleteMuseum: (id: number, opts: { onlyDraft?: boolean } = {}) =>
+    request<{ ok: true }>(`/api/museums/${id}${opts.onlyDraft ? "?only_draft=1" : ""}`, { method: "DELETE" }),
   uploadServerMedia: (id: number, file: File, meta: { caption?: string; taken_on?: string }, onProgress?: (p: number) => void) =>
     upload<MediaOut>(`/api/museums/${id}/media`, fileForm(file, meta), onProgress),
   deleteServerMedia: (id: number, mediaId: number) =>

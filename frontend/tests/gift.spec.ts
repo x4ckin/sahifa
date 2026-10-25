@@ -84,8 +84,10 @@ describe("gift", () => {
     expect(wrapper.text()).toContain("105 ⭐");
   });
 
-  it("regifting deletes the unpaid draft first", async () => {
-    s.museum = museum({ gift: { draft: 7, state: "draft" } });
+  it("regifting a changed museum replaces the unpaid draft first", async () => {
+    s.museum = museum({ gift: { draft: 7, state: "draft", hash: "old" } });
+    const { api } = await import("../src/api");
+    vi.mocked(api.getMuseum).mockResolvedValueOnce({ id: 7, slug: "d7", status: "draft" } as any);
     const { wrapper } = await mountView(Gift, "/gift/abc123", "/gift/:id");
     await wrapper.find("[data-pay]").trigger("click");
     await flushPromises();
@@ -98,7 +100,7 @@ describe("gift", () => {
     s.order = { ...s.order, status: "paid" };
     await flushPromises();
     await vi.waitFor(() => expect(router.currentRoute.value.path).toBe("/done/42"));
-    expect(s.museum?.gift).toEqual({ draft: 42, state: "paid" });
+    expect(s.museum?.gift).toMatchObject({ draft: 42, state: "paid" });
   });
 
   it("card payment goes to the order screen", async () => {

@@ -212,6 +212,16 @@ async def remove_media(s: AsyncSession, museum: Museum, media_id: int, media_dir
     _unlink(media_dir, item.path, item.thumb_path)
 
 
+async def ensure_replaceable_draft(s: AsyncSession, museum: Museum) -> None:
+    if museum.paid_at is not None or museum.status != MuseumState.DRAFT:
+        raise DomainError("already_paid")
+    in_review = await s.scalar(
+        select(Order.id).where(Order.museum_id == museum.id, Order.status.in_(("awaiting_review", "reviewing")))
+    )
+    if in_review is not None:
+        raise DomainError("payment_in_review")
+
+
 async def delete_museum(s: AsyncSession, museum: Museum, now: datetime, media_dir: Path) -> None:
     items = (await s.scalars(select(MediaItem).where(MediaItem.museum_id == museum.id))).all()
     for item in items:

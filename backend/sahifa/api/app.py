@@ -26,6 +26,8 @@ STATUS_BY_CODE = {
     "bad_token": 404,
     "media_gone": 410,
     "telegram_unavailable": 503,
+    "already_paid": 409,
+    "payment_in_review": 409,
 }
 
 InvoiceLinkFactory = Callable[[Order, int], Awaitable[str]]  # (order, extra rooms in it)

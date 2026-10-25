@@ -125,8 +125,13 @@ async def patch(
 
 
 @router.delete("/museums/{museum_id}")
-async def delete(museum_id: int, request: Request, user: User = Depends(current_user), s: AsyncSession = Depends(get_session)):
+async def delete(
+    museum_id: int, request: Request, only_draft: bool = False,
+    user: User = Depends(current_user), s: AsyncSession = Depends(get_session),
+):
     m = await svc.get_owned(s, user, museum_id)
+    if only_draft:  # the gift flow replacing its own draft: never a paid museum or one with money in review
+        await svc.ensure_replaceable_draft(s, m)
     await svc.delete_museum(s, m, request.app.state.clock(), media_dir=request.app.state.settings.media_dir)
     await s.commit()
     return {"ok": True}

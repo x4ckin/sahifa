@@ -38,7 +38,8 @@ export interface LocalMuseum {
   created: number;
   letter: string;
   media: LocalMedia[];
-  gift?: { draft: number; state: "draft" | "paid" };
+  /** link to the server copy: draft id, payment state, open order code, and a hash of what was imported */
+  gift?: { draft: number; state: "draft" | "paid"; order?: string; hash?: string };
   /** set when stored data is incomplete; such a museum is shown but never saved over */
   broken?: true;
 }
