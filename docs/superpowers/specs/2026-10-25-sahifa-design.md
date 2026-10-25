@@ -156,6 +156,29 @@ ravishda amal qilish muddatini (masalan 30 kun) belgilash mumkin. Har bir berish
 qaydga yoziladi. _(Mening qarorim: fayl hajmi va rasm/video limitlari xona bo'yicha amal qiladi —
 bepul foydalanuvchi ko'proq joy uchun xonalarni bepul qo'shadi; muzeylar soniga cheklov yo'q.)_
 
+### 4.12 Bepul muzey Telegram akkauntida (egasi qarori, 2026-10-25)
+
+To'lanmagan muzey **serverda saqlanmaydi** — u foydalanuvchining Telegram akkauntida yashaydi va
+istalgan qurilmada (telefon, kompyuter) ochiladi; egasining o'zi uchun **muddatsiz va bepul**.
+
+- **Sozlamalar** (nom, mavzu, qahramon, ochilish uslubi, maktub, media tartibi/izoh/sana va
+  media identifikatorlari) — Mini App **Telegram CloudStorage**'ida (har foydalanuvchiga,
+  ~4 MB, serverga tegmaydi).
+- **Rasm/video/ovoz** — foydalanuvchining **bot bilan chatiga** yuboriladi (Telegram serverlarida
+  turadi). Yuklash Mini App'dan: fayl server orqali o'tadi, bot uni foydalanuvchi chatiga yuboradi
+  va server nusxasini **darhol o'chiradi**. Server faqat `file_id`ni imzolab (HMAC) qaytaradi.
+- **Ko'rish:** Mini App media'ni `GET /api/tg-media/<imzolangan file_id>` orqali oladi; server
+  Telegram'dan olib **saqlamasdan uzatadi** (bot tokeni telefonga berilmaydi). Imzo faqat shu
+  foydalanuvchiga tegishli `file_id`ni ochadi. Bepul muzey diskda joy egallamaydi.
+- **Sovg'a qilish (to'lov):** to'lov tasdiqlangach server media'ni Telegram'dan yuklab olib,
+  oddiy (§4.1) to'langan muzeyga aylantiradi: havola, QR, 120 kun. Telefondagi/akkauntdagi bepul
+  nusxa o'zgarmay qoladi.
+- **Cheklovlar:** Bot API faqat ≤ 20 MB faylni yuklab bera oladi — bepul muzeyda video ≤ 20 MB
+  (aks holda sovg'aga aylantirib bo'lmaydi). Foydalanuvchi bot chatini o'chirsa, bepul muzey
+  media'si yo'qoladi — ilovada ogohlantiriladi.
+- 10 ta muzey limiti (§4.1) bepul akkaunt-muzeylarga ham taalluqli (CloudStorage hajmi ham
+  shuni talab qiladi). Qoralama 7 kunlik o'chirish qoidasi endi qo'llanmaydi — serverda qoralama yo'q.
+
 ## 5. Mening qarorlarim (egasi so'ramagan; o'zgartirish mumkin)
 
 - **Stack:** backend — Python (aiogram 3 bot + FastAPI API) bitta loyihada; ma'lumotlar bazasi
