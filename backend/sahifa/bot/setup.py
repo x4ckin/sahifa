@@ -31,5 +31,10 @@ def build_dispatcher(
 
     dp = Dispatcher(settings=settings, clock=clock)
     dp.update.outer_middleware(SessionMiddleware(sessionmaker))
-    dp.include_routers(start.router, payments.router, review.router, admin.router)
+    routers = (start.router, payments.router, review.router, admin.router)
+    for router in routers:  # module-level routers: allow building a dispatcher more than once (tests)
+        if router.parent_router is not None:
+            router.parent_router.sub_routers.remove(router)
+            router._parent_router = None
+    dp.include_routers(*routers)
     return dp
