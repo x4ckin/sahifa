@@ -8,6 +8,8 @@ export const routes: RouteRecordRaw[] = [
   { path: "/gift/:id", name: "gift", component: () => import("./views/Gift.vue") },
   { path: "/order/:code", name: "order", component: () => import("./views/Order.vue") },
   { path: "/done/:id", name: "done", component: () => import("./views/Done.vue") },
+  { path: "/museum/:id", name: "museum", component: () => import("./views/ServerMuseum.vue") },
+  { path: "/local/:id", name: "local", component: () => import("./views/LocalMuseum.vue") },
   { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
 

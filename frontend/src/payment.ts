@@ -1,4 +1,5 @@
 import { api, type OrderOut } from "./api";
+import { tg } from "./telegram";
 
 const FINAL = new Set(["paid", "rejected", "cancelled", "refunded"]);
 
@@ -10,4 +11,20 @@ export async function waitForOrder(code: string, sleep = (ms: number) => new Pro
     order = await api.getOrder(code);
   }
   return order;
+}
+
+export type PayOutcome = { kind: "paid" } | { kind: "card"; code: string } | { kind: "not_paid" };
+
+/** Buy a product for an existing server museum (room, reactivation, museum slots). */
+export async function payForProduct(
+  product: "room" | "reactivate" | "slots",
+  museumId: number | null,
+  method: "stars" | "card",
+): Promise<PayOutcome> {
+  const order = await api.createOrder(product, museumId, method);
+  if (order.status === "paid") return { kind: "paid" };
+  if (method === "card" || !order.invoice_link) return { kind: "card", code: order.code };
+  const status = await tg.openInvoice(order.invoice_link);
+  if (status === "cancelled" || status === "failed") return { kind: "not_paid" };
+  return (await waitForOrder(order.code)).status === "paid" ? { kind: "paid" } : { kind: "not_paid" };
 }
