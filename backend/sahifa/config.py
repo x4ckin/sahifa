@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     webapp_url: str = "http://localhost:5173"
     api_host: str = "127.0.0.1"
     api_port: int = 8000
+    # signs free-museum media tokens; set it so rotating the bot token keeps free museums working
+    media_secret: str | None = None
 
     @property
     def receipts_dir(self) -> Path:

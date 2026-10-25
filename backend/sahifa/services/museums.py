@@ -16,6 +16,8 @@ from sahifa.domain.lifecycle import (
 from sahifa.models import MediaItem, Museum, Order, User
 from sahifa.services.media import (
     MAX_MUSIC_SECONDS,
+    adopt_image,
+    adopt_video,
     MAX_VOICE_SECONDS,
     process_audio,
     process_image,
@@ -139,6 +141,7 @@ async def add_media(
     taken_on: str | None,
     now: datetime,
     media_dir: Path,
+    preprocessed: bool = False,
 ) -> MediaItem:
     _ensure_editable(museum)
     if kind not in ("image", "video"):
@@ -148,7 +151,9 @@ async def add_media(
         raise DomainError("media_full")
 
     out_dir = media_dir / str(museum.id)
-    if kind == "image":
+    if preprocessed:
+        main, thumb = await (adopt_image(src, out_dir) if kind == "image" else adopt_video(src, out_dir))
+    elif kind == "image":
         main, thumb = await asyncio.to_thread(process_image, src, out_dir)
     else:
         main, thumb = await process_video(src, out_dir)
@@ -254,8 +259,12 @@ async def import_account_museum(
             raise DomainError("bad_format")
         return file_id, kind
 
-    # check every token before touching Telegram or the disk
+    # check every token, and the limits, before touching Telegram or the disk
     wall = [(own(i["token"], ("image", "video")), i) for i in items]
+    base = limits_for(0)
+    images = sum(kind == "image" for (_, kind), _ in wall)
+    if images > base.images or len(wall) - images > base.videos:
+        raise DomainError("media_full")
     voice = own(voice_token, ("audio",))[0] if voice_token else None
     music = own(music_token, ("audio",))[0] if music_token else None
 
@@ -266,7 +275,10 @@ async def import_account_museum(
             for n, ((file_id, kind), item) in enumerate(wall):
                 src = Path(tmp) / f"{n}{_IMPORT_SUFFIX[kind]}"
                 src.write_bytes(await fetch(file_id))
-                await add_media(s, museum, src, kind, item.get("caption"), item.get("taken_on"), now, media_dir)
+                await add_media(
+                    s, museum, src, kind, item.get("caption"), item.get("taken_on"), now, media_dir,
+                    preprocessed=True,  # already WebP / 720p from /api/tg-media: no second lossy pass
+                )
             for file_id, setter in ((voice, set_voice), (music, set_music_file)):
                 if file_id:
                     src = Path(tmp) / f"audio-{setter.__name__}.m4a"

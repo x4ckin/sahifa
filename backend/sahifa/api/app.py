@@ -25,6 +25,7 @@ STATUS_BY_CODE = {
     "start_bot": 409,
     "bad_token": 404,
     "media_gone": 410,
+    "telegram_unavailable": 503,
 }
 
 InvoiceLinkFactory = Callable[[Order], Awaitable[str]]

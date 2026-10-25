@@ -143,3 +143,40 @@ async def _transcode(*args: str, cleanup: Path | tuple[Path, ...]) -> None:
         for path in cleanup if isinstance(cleanup, tuple) else (cleanup,):
             path.unlink(missing_ok=True)
         raise
+
+
+async def adopt_image(src: Path, out_dir: Path) -> tuple[Path, Path]:
+    """Keep an image we already processed (from the user's Telegram chat); only add a thumbnail."""
+    check_size(src, MAX_IMAGE_BYTES)
+
+    def work() -> tuple[Path, Path]:
+        try:
+            with Image.open(src) as im:
+                if im.format != "WEBP" or im.size[0] * im.size[1] > MAX_IMAGE_PIXELS:
+                    raise MediaError("bad_format")
+                thumb = _name(out_dir, ".webp")
+                im.thumbnail((THUMB_MAX_SIDE, THUMB_MAX_SIDE))
+                im.save(thumb, "WEBP", quality=75)
+        except (UnidentifiedImageError, OSError) as e:
+            raise MediaError("bad_format") from e
+        main = _name(out_dir, ".webp")
+        main.write_bytes(src.read_bytes())
+        return main, thumb
+
+    return await asyncio.to_thread(work)
+
+
+async def adopt_video(src: Path, out_dir: Path) -> tuple[Path, Path]:
+    """Keep a video we already transcoded; only cut a poster frame."""
+    check_size(src, MAX_VIDEO_BYTES)
+    fmt, duration = await probe(src)
+    if duration > MAX_VIDEO_SECONDS + 1:
+        raise MediaError("too_long")
+    video = _name(out_dir, ".mp4")
+    video.write_bytes(src.read_bytes())
+    poster = _name(out_dir, ".jpg")
+    await _transcode(
+        "-y", "-loglevel", "error", *_SAFE_INPUT, fmt, "-i", str(video),
+        "-frames:v", "1", "-q:v", "4", str(poster), cleanup=(video, poster),
+    )
+    return video, poster

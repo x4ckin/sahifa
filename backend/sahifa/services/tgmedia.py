@@ -28,6 +28,13 @@ def media_secret(bot_token: str) -> bytes:
     return hashlib.sha256(b"sahifa-tg-media:" + bot_token.encode()).digest()
 
 
+def media_key(settings) -> bytes:
+    """The signing key: SAHIFA_MEDIA_SECRET if set (survives bot token rotation), else derived."""
+    if settings.media_secret:
+        return hashlib.sha256(b"sahifa-tg-media-secret:" + settings.media_secret.encode()).digest()
+    return media_secret(settings.bot_token)
+
+
 def _sign(secret: bytes, payload: str) -> str:
     return _b64(hmac.new(secret, payload.encode(), hashlib.sha256).digest()[:_SIG_BYTES])
 

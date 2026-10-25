@@ -1,5 +1,5 @@
 from sahifa.services import media
-from sahifa.services.tgmedia import media_secret, sign_media, verify_media
+from sahifa.services.tgmedia import media_key, media_secret, sign_media, verify_media
 from tests.api.test_museums_api import jpeg_bytes
 
 
@@ -14,7 +14,7 @@ async def test_upload_returns_signed_token(client, auth, settings, hooks):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["kind"] == "image"
-    user_id, file_id, kind = verify_media(media_secret(settings.bot_token), body["token"])
+    user_id, file_id, kind = verify_media(media_key(settings), body["token"])
     assert (user_id, kind) == (7, "image") and file_id in hooks.chat_files
     assert hooks.chat_files[file_id][:4] == b"RIFF"  # processed to WebP before it goes to the chat
 
@@ -63,7 +63,7 @@ async def test_bad_token_never_calls_telegram(client, hooks):
 
 
 async def test_gone_media_is_410(client, settings):
-    token = sign_media(media_secret(settings.bot_token), 7, "deleted-file", "image")
+    token = sign_media(media_key(settings), 7, "deleted-file", "image")
     r = await client.get(f"/api/tg-media/{token}")
     assert (r.status_code, r.json()) == (410, {"error": "media_gone"})
 

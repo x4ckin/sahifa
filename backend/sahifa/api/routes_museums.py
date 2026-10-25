@@ -223,12 +223,17 @@ class ImportIn(BaseModel):
 async def import_museum(
     body: ImportIn, request: Request, user: User = Depends(current_user), s: AsyncSession = Depends(get_session)
 ):
-    from sahifa.services.tgmedia import media_secret
+    from sahifa.api.routes_tgmedia import fetch_limited
+    from sahifa.services.tgmedia import media_key
 
     state = request.app.state
+
+    async def fetch(file_id: str) -> bytes:
+        return await fetch_limited(state.tg_fetcher, file_id)
+
     m = await svc.import_account_museum(
         s, user, body.settings.model_dump(exclude_unset=True), [i.model_dump() for i in body.media],
-        state.tg_fetcher, media_secret(state.settings.bot_token), state.clock(), state.settings.media_dir,
+        fetch, media_key(state.settings), state.clock(), state.settings.media_dir,
         voice_token=body.voice_token, music_token=body.music_token,
     )
     await s.commit()

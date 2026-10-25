@@ -39,3 +39,10 @@ def settings(tmp_path) -> Settings:
         public_api_url="https://api.test",
         webapp_url="https://web.test",
     )
+
+
+@pytest.fixture(autouse=True)
+def _fresh_rate_limiter(monkeypatch):
+    from sahifa.api import routes_tgmedia
+
+    monkeypatch.setattr(routes_tgmedia, "_limiter", routes_tgmedia.RateLimiter())
