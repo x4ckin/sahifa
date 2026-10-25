@@ -32,6 +32,7 @@ interface WebApp {
   openInvoice?: (url: string, cb: (status: InvoiceStatus) => void) => void;
   openTelegramLink?: (url: string) => void;
   openLink?: (url: string) => void;
+  isVersionAtLeast?: (version: string) => boolean;
 }
 
 export interface TgUser {
@@ -120,22 +121,43 @@ export const tg = {
 
 const PREFIX = "sahifa:";
 
+const CLOUD_TIMEOUT_MS = 10_000;
+
 function viaSdk<T>(call: (cb: Callback<T>) => void): Promise<T> {
-  return new Promise((resolve, reject) =>
-    call((error, result) => (error ? reject(new Error(String(error))) : resolve(result as T))),
-  );
+  return new Promise((resolve, reject) => {
+    // a callback that never comes (app backgrounded, request dropped) must not hang saves forever
+    const timer = setTimeout(() => reject(new Error("timeout")), CLOUD_TIMEOUT_MS);
+    const done = (error: unknown, result?: T) => {
+      clearTimeout(timer);
+      if (error) reject(new Error(String(error)));
+      else resolve(result as T);
+    };
+    try {
+      call(done);
+    } catch (e) {
+      done(e instanceof Error ? e.message : e);
+    }
+  });
+}
+
+/** CloudStorage needs Bot API 6.9; older clients expose the object but every call throws. */
+function cloudStorage() {
+  const app = wa();
+  if (!app?.CloudStorage) return null;
+  if (app.isVersionAtLeast && !app.isVersionAtLeast("6.9")) return null;
+  return app.CloudStorage;
 }
 
 /** Telegram CloudStorage (per user, per bot); localStorage stands in outside Telegram. */
 export const cloud = {
   async get(keys: string[]): Promise<Record<string, string>> {
-    const storage = wa()?.CloudStorage;
+    const storage = cloudStorage();
     if (storage) return viaSdk((cb) => storage.getItems(keys, cb));
     return Object.fromEntries(keys.map((k) => [k, localStorage.getItem(PREFIX + k) ?? ""]));
   },
 
   async set(key: string, value: string): Promise<void> {
-    const storage = wa()?.CloudStorage;
+    const storage = cloudStorage();
     if (storage) {
       await viaSdk<boolean>((cb) => storage.setItem(key, value, cb));
       return;
@@ -145,7 +167,7 @@ export const cloud = {
 
   async remove(keys: string[]): Promise<void> {
     if (keys.length === 0) return;
-    const storage = wa()?.CloudStorage;
+    const storage = cloudStorage();
     if (storage) {
       await viaSdk<boolean>((cb) => storage.removeItems(keys, cb));
       return;
@@ -154,7 +176,7 @@ export const cloud = {
   },
 
   async keys(): Promise<string[]> {
-    const storage = wa()?.CloudStorage;
+    const storage = cloudStorage();
     if (storage) return viaSdk((cb) => storage.getKeys(cb));
     return Object.keys(localStorage)
       .filter((k) => k.startsWith(PREFIX))

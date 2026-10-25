@@ -23,6 +23,7 @@ export default {
     badge_free: "Bepul · akkauntda",
     badge_gift: "🎁 Sovg'a qilingan",
     badge_expired: "Muddati tugagan",
+    badge_broken: "⚠️ To'liq o'qilmadi",
     badge_received: "🎁 Sizga topshirilgan",
     slots_full: "Muzeylar soni to'ldi ({used}/{total}).",
     buy_slots: "+5 muzey — {price} so'm",

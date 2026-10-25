@@ -37,6 +37,7 @@ const rows = computed<Row[]>(() => {
     const counts = t("home.counts", { img, vid: m.media.length - img });
     const gifted = m.gift?.state === "paid" ? byId.get(m.gift.draft) : undefined;
     if (m.gift) linked.add(m.gift.draft);
+    if (m.broken) return { key: m.id, title: m.title, subtitle: "", badge: t("home.badge_broken"), tone: "muted", to: `/local/${m.id}` };
     if (!gifted) return { key: m.id, title: m.title, subtitle: counts, badge: t("home.badge_free"), tone: "free", to: `/local/${m.id}` };
     const expired = gifted.status === "expired";
     return {

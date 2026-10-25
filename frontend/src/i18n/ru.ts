@@ -23,6 +23,7 @@ export default {
     badge_free: "Бесплатно · в аккаунте",
     badge_gift: "🎁 Подарен",
     badge_expired: "Срок истёк",
+    badge_broken: "⚠️ Не прочитан полностью",
     badge_received: "🎁 Передан вам",
     slots_full: "Лимит музеев исчерпан ({used}/{total}).",
     buy_slots: "+5 музеев — {price} сум",

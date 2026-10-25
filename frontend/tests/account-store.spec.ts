@@ -74,7 +74,7 @@ describe("account store", () => {
     m.media = media(40);
     const realSet = cloud.set.bind(cloud);
     vi.spyOn(cloud, "set").mockImplementation(async (k, v) => {
-      if (k === "idx") throw new Error("network");
+      if (k === `m_${m.id}`) throw new Error("network"); // the meta is the switch-over
       return realSet(k, v);
     });
     await expect(saveMuseum(m)).rejects.toThrow();
@@ -90,8 +90,8 @@ describe("account store", () => {
     m.letter = "";
     await saveMuseum(m);
     const ks = await keys();
-    expect(ks.filter((k) => /_\d+p\d+$/.test(k)).length).toBe(1);
-    expect(ks.some((k) => /_\d+l$/.test(k))).toBe(false);
+    expect(ks.filter((k) => /_p\d+$/.test(k)).length).toBe(1);
+    expect(ks.some((k) => /_l\d+$/.test(k))).toBe(false);
     expect((await loadMuseum(m.id))?.media).toHaveLength(2);
   });
 
@@ -128,9 +128,12 @@ describe("garbage collection", () => {
     const m = newMuseum("blank", { title: "A", letter: "x" });
     m.media = media(3);
     await saveMuseum(m);
-    await cloud.set(`m_${m.id}_99p0`, "[]"); // left by an interrupted save
-    await cloud.set("m_gone00", "{}"); // museum no longer in the index
-    expect(await collectGarbage()).toBe(2);
+    const dayAgo = (Date.now() - 2 * 86_400_000).toString(36) + "abcd";
+    await cloud.set(`m_${m.id}_${dayAgo}_p0`, "[]"); // left by an interrupted save two days ago
+    await cloud.set(`m_${m.id}_${Date.now().toString(36)}efgh_p0`, "[]"); // maybe a save running elsewhere
+    await cloud.set("m_gone00", "{}"); // a meta: never deleted by GC
+    expect(await collectGarbage()).toBe(1);
     expect(await loadMuseum(m.id)).toEqual(m);
+    expect((await cloud.keys()).includes("m_gone00")).toBe(true);
   });
 });
