@@ -17,7 +17,7 @@ from sahifa.services.users import is_free_now
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I — read aloud from a receipt
 OPEN_STATUSES = ("pending", "awaiting_review")
-CLAIMABLE = OPEN_STATUSES  # states a payment may complete
+CLAIMABLE = (*OPEN_STATUSES, "reviewing")  # states a payment may complete
 
 # which museum states each product may be bought for
 _MUSEUM_STATES: dict[Product, set[str]] = {
@@ -209,8 +209,20 @@ async def attach_receipt(
     return order
 
 
+async def claim_for_review(s: AsyncSession, order: Order) -> bool:
+    """Atomically take a card receipt for review; False if another tap/admin got it first."""
+    claimed = await s.execute(
+        update(Order)
+        .where(Order.id == order.id, Order.method == "card", Order.status == "awaiting_review")
+        .values(status="reviewing")
+        .execution_options(synchronize_session=False)
+    )
+    await s.refresh(order)
+    return claimed.rowcount == 1
+
+
 async def reject(s: AsyncSession, order: Order, admin_id: int, reason: str, now: datetime) -> Order:
-    if order.status not in OPEN_STATUSES:
+    if order.status not in CLAIMABLE:
         raise DomainError("bad_order")
     order.status, order.reject_reason, order.admin_id = "rejected", reason, admin_id
     await audit.log(s, admin_id, "order_rejected", code=order.code, reason=reason)

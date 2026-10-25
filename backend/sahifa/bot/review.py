@@ -3,6 +3,7 @@
 from collections.abc import Awaitable, Callable
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramAPIError
 from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.text_decorations import html_decoration
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -63,44 +64,57 @@ def make_receipt_notifier(bot, settings: Settings, sessionmaker: async_sessionma
     return notify
 
 
+async def _safe(coro) -> None:
+    """Telegram side effects after a commit must never undo or hide the decision."""
+    try:
+        await coro
+    except TelegramAPIError:
+        pass
+
+
 @router.callback_query(F.data.startswith("rv:"))
 async def on_review(callback: CallbackQuery, session: AsyncSession, bot, settings: Settings, clock) -> None:
     if callback.from_user.id not in settings.admin_ids:
         await callback.answer(texts.NOT_ADMIN, show_alert=True)
         return
     parts = callback.data.split(":")
-    action, code = parts[1], parts[2]
-    admin = escape(callback.from_user.first_name)
-    order = await orders.get_by_code(session, code)
-    caption = callback.message.html_text or ""  # keeps our HTML; user parts were escaped when sent
-    my_button = InlineKeyboardMarkup(inline_keyboard=[[webapp_button(texts.BTN_MY, f"{settings.webapp_url}#/my")]])
-
-    if order.status not in ("pending", "awaiting_review"):
+    try:
+        action, code = parts[1], parts[2]
+        order = await orders.get_by_code(session, code)
+    except (IndexError, DomainError):
+        await callback.answer(texts.REVIEW_ALREADY, show_alert=True)
+        return
+    if not await orders.claim_for_review(session, order):  # double tap, or another admin was first
         await callback.answer(texts.REVIEW_ALREADY, show_alert=True)
         return
 
+    admin = escape(callback.from_user.first_name)
+    message = callback.message
+    caption = getattr(message, "html_text", None) or ""
     product = PRODUCT_TITLES_UZ[Product(order.product)]
     if action == "ok":
         try:
             await orders.fulfil(session, order, clock(), admin_id=callback.from_user.id)
         except DomainError:  # museum deleted meanwhile: order is now rejected, money must go back
             await session.commit()
-            await callback.message.edit_caption(caption=caption + texts.REVIEW_MUSEUM_GONE, reply_markup=None)
             await callback.answer()
+            await _safe(message.edit_caption(caption=caption + texts.REVIEW_MUSEUM_GONE, reply_markup=None))
+            await _safe(bot.send_message(order.user_id, texts.USER_MUSEUM_GONE))
             return
         await session.commit()
-        await callback.message.edit_caption(caption=caption + texts.REVIEW_APPROVED.format(admin=admin), reply_markup=None)
-        await bot.send_message(order.user_id, texts.USER_APPROVED.format(product=product), reply_markup=my_button)
-    else:
-        reason_key = parts[3] if len(parts) > 3 and parts[3] in texts.REJECT_REASONS else "notfound"
-        reason = texts.REJECT_REASONS[reason_key]
-        await orders.reject(session, order, callback.from_user.id, reason_key, clock())
-        await session.commit()
-        await callback.message.edit_caption(
-            caption=caption + texts.REVIEW_REJECTED.format(reason=reason, admin=admin), reply_markup=None
-        )
-        resend = InlineKeyboardMarkup(
-            inline_keyboard=[[webapp_button(texts.BTN_RESEND, f"{settings.webapp_url}#/order/{order.code}")]]
-        )
-        await bot.send_message(order.user_id, texts.USER_REJECTED.format(reason=reason.lower()), reply_markup=resend)
+        await callback.answer()
+        await _safe(message.edit_caption(caption=caption + texts.REVIEW_APPROVED.format(admin=admin), reply_markup=None))
+        my_button = InlineKeyboardMarkup(inline_keyboard=[[webapp_button(texts.BTN_MY, f"{settings.webapp_url}#/my")]])
+        await _safe(bot.send_message(order.user_id, texts.USER_APPROVED.format(product=product), reply_markup=my_button))
+        return
+
+    reason_key = parts[3] if len(parts) > 3 and parts[3] in texts.REJECT_REASONS else "notfound"
+    reason = texts.REJECT_REASONS[reason_key]
+    await orders.reject(session, order, callback.from_user.id, reason_key, clock())
+    await session.commit()
     await callback.answer()
+    await _safe(message.edit_caption(caption=caption + texts.REVIEW_REJECTED.format(reason=reason, admin=admin), reply_markup=None))
+    resend = InlineKeyboardMarkup(
+        inline_keyboard=[[webapp_button(texts.BTN_RESEND, f"{settings.webapp_url}#/order/{order.code}")]]
+    )
+    await _safe(bot.send_message(order.user_id, texts.USER_REJECTED.format(reason=reason.lower()), reply_markup=resend))
