@@ -26,9 +26,11 @@ STATUS_BY_CODE = {
     "bad_token": 404,
     "media_gone": 410,
     "telegram_unavailable": 503,
+    "already_paid": 409,
+    "payment_in_review": 409,
 }
 
-InvoiceLinkFactory = Callable[[Order], Awaitable[str]]
+InvoiceLinkFactory = Callable[[Order, int], Awaitable[str]]  # (order, extra rooms in it)
 ReceiptNotifier = Callable[[Order], Awaitable[None]]
 TgUploader = Callable[[int, Path, str], Awaitable[str]]  # (user_id, file, kind) -> Telegram file_id
 TgFetcher = Callable[[str], Awaitable[bytes]]  # file_id -> content (<= 20 MB), never written to disk
@@ -54,7 +56,9 @@ def create_app(
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     max_body_bytes: int = 60 * 2**20,
 ) -> FastAPI:
-    from sahifa.api import routes_me, routes_museums, routes_orders, routes_public, routes_tgmedia, routes_transfers
+    from sahifa.api import (
+        routes_me, routes_museums, routes_orders, routes_prices, routes_public, routes_tgmedia, routes_transfers,
+    )
 
     app = FastAPI(title="Sahifa API", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
@@ -84,7 +88,7 @@ def create_app(
     async def _domain_error(_: Request, exc: DomainError):
         return JSONResponse({"error": exc.code}, status_code=STATUS_BY_CODE.get(exc.code, 400))
 
-    for module in (routes_me, routes_museums, routes_orders, routes_transfers, routes_public, routes_tgmedia):
+    for module in (routes_me, routes_museums, routes_orders, routes_transfers, routes_public, routes_tgmedia, routes_prices):
         app.include_router(module.router, prefix="/api")
 
     settings.media_dir.mkdir(parents=True, exist_ok=True)

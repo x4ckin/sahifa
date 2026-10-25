@@ -63,7 +63,7 @@ async def test_receipt_upload_survives_notifier_failure(settings, sessionmaker, 
     async def broken_notifier(order):
         raise RuntimeError("chat not found")
 
-    async def link(order):
+    async def link(order, rooms=0):
         return "x"
 
     app = create_app(settings, sessionmaker, invoice_link_factory=link, receipt_notifier=broken_notifier,

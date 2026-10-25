@@ -152,19 +152,6 @@ async def test_open_museum_order_is_reused_across_methods(session, now):
     assert stars.code == a.code
 
 
-async def test_second_museum_payment_extends_instead_of_wasting(session, now):
-    from sahifa.models import Order
-
-    user = await make_user(session)
-    m = await _paid_museum(session, user, now)
-    # a payment that raced the first one (e.g. Stars paid while the card receipt was approved)
-    late = Order(code="LATE22", user_id=user.id, product="museum", museum_id=m.id, method="stars")
-    session.add(late)
-    await session.flush()
-    await fulfil(session, late, now)
-    assert m.expires_at == now + timedelta(days=240)
-
-
 async def test_price_snapshot(session, now):
     user = await make_user(session)
     m = await create_museum(session, user, now)

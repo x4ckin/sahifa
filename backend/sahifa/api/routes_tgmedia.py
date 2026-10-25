@@ -37,7 +37,7 @@ RANGE = re.compile(r"^bytes=(\d*)-(\d*)$")
 class RateLimiter:
     """Sliding one-minute window per client IP: a leaked link cannot drain the home uplink."""
 
-    def __init__(self, per_minute: int = 120):
+    def __init__(self, per_minute: int = 300):
         self.per_minute = per_minute
         self.hits: dict[str, deque] = defaultdict(deque)
 

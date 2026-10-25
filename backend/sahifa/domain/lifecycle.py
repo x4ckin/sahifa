@@ -62,6 +62,17 @@ def limits_for(extra_rooms: int) -> Limits:
     )
 
 
+MAX_EXTRA_ROOMS = 10
+
+
+def rooms_needed(images: int, videos: int) -> int:
+    """Extra rooms a museum needs for this much media (free museums may grow up to 10 rooms)."""
+    rooms = max(-(-(images - BASE_IMAGES) // ROOM_IMAGES), -(-(videos - BASE_VIDEOS) // ROOM_VIDEOS), 0)
+    if rooms > MAX_EXTRA_ROOMS:
+        raise DomainError("media_full")
+    return rooms
+
+
 def locked_fields(changed: set[str], paid: bool) -> set[str]:
     return set(changed & LOCKED_AFTER_PAYMENT) if paid else set()
 

@@ -22,7 +22,7 @@ CLAIMABLE = (*OPEN_STATUSES, "reviewing")  # states a payment may complete
 # which museum states each product may be bought for
 _MUSEUM_STATES: dict[Product, set[str]] = {
     Product.MUSEUM: {MuseumState.DRAFT},
-    Product.ROOM: {MuseumState.DRAFT, MuseumState.ACTIVE},
+    Product.ROOM: {MuseumState.ACTIVE},  # a draft's rooms are paid inside its museum order
     Product.REACTIVATE: {MuseumState.ACTIVE, MuseumState.EXPIRED},
 }
 
@@ -95,6 +95,10 @@ async def create_order(
 
     order.amount_uzs = await get_price(s, product, "uzs")
     order.amount_stars = await get_price(s, product, "stars")
+    if product == Product.MUSEUM:  # rooms a big museum was imported with are paid in the same order
+        rooms = (await s.get(Museum, museum_id)).extra_rooms
+        order.amount_uzs += rooms * await get_price(s, Product.ROOM, "uzs")
+        order.amount_stars += rooms * await get_price(s, Product.ROOM, "stars")
     s.add(order)
     await s.flush()
     return order
@@ -133,6 +137,8 @@ async def fulfil(
             order.status, order.reject_reason, order.admin_id = "rejected", "museum_gone", admin_id
             await s.flush()
             raise DomainError("museum_gone")
+        if Product(order.product) == Product.MUSEUM and museum.paid_at is not None:
+            return await _refuse_second_museum_payment(s, order, charge_id, admin_id)
 
     # claim the order atomically: of two concurrent payments only one moves it out of CLAIMABLE
     claimed = await s.execute(
@@ -152,6 +158,16 @@ async def fulfil(
     return order
 
 
+async def _refuse_second_museum_payment(
+    s: AsyncSession, order: Order, charge_id: str | None, admin_id: int | None
+) -> Order:
+    """A museum is bought once: a second payment is rejected and refunded, never silently converted."""
+    order.status, order.reject_reason, order.admin_id = "rejected", "already_paid", admin_id
+    order.charge_id = charge_id or order.charge_id
+    await s.flush()
+    return await _duplicate(s, order, charge_id)
+
+
 async def _duplicate(s: AsyncSession, order: Order, charge_id: str | None) -> Order:
     """A second, different charge for one order: grant nothing, the caller refunds it."""
     await audit.log(s, order.user_id, "duplicate_payment", code=order.code, charge_id=charge_id)
@@ -169,6 +185,8 @@ async def _grant(s: AsyncSession, order: Order, museum: Museum | None, now: date
         await s.refresh(user)
         return
     await s.refresh(museum)  # we hold the write lock now: read the latest state
+    if product == Product.MUSEUM and museum.paid_at is not None:  # another payment won the race
+        await _refuse_second_museum_payment(s, order, order.charge_id, order.admin_id)
     if product == Product.ROOM:
         await s.execute(
             update(Museum).where(Museum.id == museum.id).values(extra_rooms=Museum.extra_rooms + 1)
@@ -182,7 +200,7 @@ async def _grant(s: AsyncSession, order: Order, museum: Museum | None, now: date
     elif order.method == "free":  # free users renew to now+120d, never stack
         museum.expires_at = max(museum.expires_at or now, activation_window(now, None)[1])
         museum.status = MuseumState.ACTIVE
-    else:  # REACTIVATE, or a museum payment that raced an earlier one: extend
+    else:  # REACTIVATE
         museum.expires_at = reactivated_expiry(now, museum.expires_at)
         museum.status = MuseumState.ACTIVE
     museum.updated_at = now

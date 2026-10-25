@@ -57,3 +57,5 @@ USER_REJECTED = "❌ Chekingiz qabul qilinmadi: {reason}.\nIltimos, tekshirib, c
 BTN_RESEND = "🧾 Chekni qayta yuborish"
 USER_MUSEUM_GONE = "Muzeyingiz o'chirilgani sababli to'lovni faollashtirib bo'lmadi — pulingiz qaytariladi. Admin tez orada bog'lanadi."
 PAYMENT_PENDING_ADMIN = "To'lovingiz qabul qilindi, lekin uni faollashtirishda texnik xato bo'ldi. Admin tez orada tekshirib, faollashtiradi."
+REVIEW_ALREADY_PAID = "\n\n⚠️ Bu muzey allaqachon to'langan — bu pulni foydalanuvchiga qaytaring!"
+USER_ALREADY_PAID = "Bu muzey uchun to'lov avvalroq qabul qilingan edi — ikkinchi to'lovingiz qaytariladi. Admin tez orada bog'lanadi."
