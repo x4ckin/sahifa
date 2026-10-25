@@ -47,7 +47,7 @@ ruxsat berib, keyin server xatosi bilan "jazolash"; 2 MB dan og'ir boshlang'ich 
    Har o'zgarish darhol CloudStorage'ga yoziladi (debounce 600 ms).
 3. **Sovg'a qilish** `#/gift/:id` — xulosa (muzey + kerakli qo'shimcha xonalar avtomatik: rasm >30
    yoki video >5 bo'lsa), Stars yoki karta. Bosilganda: `POST /api/museums/import` → server qoralamasi
-   → `POST /api/orders` (muzey, keyin har xona uchun `room`) → Stars: `WebApp.openInvoice(link)`;
+   (xonalar bilan, §6) → bitta `POST /api/orders` (muzey + xonalar) → Stars: `WebApp.openInvoice(link)`;
    karta: karta ekrani. To'lov tasdig'i `GET /api/orders/:code` ni 3 s da so'rab kutish.
 4. **Karta orqali to'lov** `#/order/:code` — karta raqami (bosib nusxalash), egasi, summa, kod
    (izohga yozish), chek yuklash, "Tekshirilmoqda…", rad etilsa sabab + qayta yuborish.
