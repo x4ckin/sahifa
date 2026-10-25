@@ -12,7 +12,7 @@ from aiogram.utils.text_decorations import html_decoration
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sahifa.bot.review import money
+from sahifa.bot.review import money, notify_admins_new_receipt
 from sahifa.config import Settings
 from sahifa.domain.lifecycle import DomainError
 from sahifa.domain.pricing import Product
@@ -251,3 +251,17 @@ async def cmd_refund(message: Message, command: CommandObject, session: AsyncSes
         f"✅ {order.code}: {order.amount_stars} ⭐ qaytarildi{note}.\n"
         "ℹ️ Berilgan huquq (muzey/xona/limit) saqlanib qoldi — kerak bo'lsa qo'lda o'zgartiring."
     )
+
+
+@router.message(Command("cheklar"))
+async def cmd_pending_receipts(message: Message, session: AsyncSession, bot, settings: Settings) -> None:
+    """Re-send every receipt still waiting for a decision (e.g. after a failed notification)."""
+    waiting = (await session.scalars(
+        select(Order).where(Order.status == "awaiting_review").order_by(Order.created_at)
+    )).all()
+    if not waiting:
+        await message.answer("Tekshirilmagan cheklar yo'q ✅")
+        return
+    for order in waiting:
+        await notify_admins_new_receipt(bot, settings, session, order)
+    await message.answer(f"🧾 {len(waiting)} ta chek qayta yuborildi.")

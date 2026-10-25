@@ -63,6 +63,20 @@ async def on_successful_payment(message: Message, session: AsyncSession, bot, se
         await refund_once(bot, session, settings, message.from_user.id, charge_id, e.code)
         await message.answer(texts.PAYMENT_REFUNDED)
         return
+    except Exception:
+        # e.g. "database is locked": the money is with us but nothing was granted — leave a trace
+        log.exception("payment %s could not be processed", charge_id)
+        await session.rollback()
+        await audit.log(session, message.from_user.id, "payment_unhandled",
+                        code=payment.invoice_payload, charge_id=charge_id)
+        await session.commit()
+        await bot.send_message(
+            settings.admin_chat_id,
+            f"🚨 To'lov qayta ishlanmadi — buyurtma <code>{payment.invoice_payload}</code>, "
+            f"foydalanuvchi <code>{message.from_user.id}</code>, charge <code>{charge_id}</code>. Qo'lda tekshiring.",
+        )
+        await message.answer(texts.PAYMENT_PENDING_ADMIN)
+        return
     await session.commit()
     await message.answer(texts.PAID.format(product=PRODUCT_TITLES_UZ[Product(order.product)]))
 

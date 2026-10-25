@@ -9,7 +9,7 @@ COPY backend/pyproject.toml ./
 COPY backend/sahifa ./sahifa
 RUN pip install --no-cache-dir .
 
-RUN useradd --create-home sahifa && mkdir -p /app/data && chown sahifa /app/data
+RUN useradd --create-home --uid 1000 sahifa && mkdir -p /app/data && chown sahifa /app/data
 USER sahifa
 
 ENV SAHIFA_API_HOST=0.0.0.0 \

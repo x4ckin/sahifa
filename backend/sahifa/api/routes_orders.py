@@ -1,3 +1,4 @@
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Request, UploadFile
@@ -13,6 +14,7 @@ from sahifa.services import orders as svc
 from sahifa.services.media import MAX_IMAGE_BYTES
 from sahifa.services.settings_store import get_cards
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -77,5 +79,8 @@ async def receipt(
             s, order, src, request.app.state.clock(), receipts_dir=request.app.state.settings.receipts_dir
         )
     await s.commit()
-    await request.app.state.receipt_notifier(order)
+    try:
+        await request.app.state.receipt_notifier(order)
+    except Exception:  # the receipt is saved; admins can list it with /cheklar
+        log.exception("could not notify admins about receipt %s", order.code)
     return order_out(order)

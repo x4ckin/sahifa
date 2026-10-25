@@ -193,7 +193,8 @@ async def attach_receipt(
     s: AsyncSession, order: Order, src: Path, now: datetime, receipts_dir: Path
 ) -> Order:
     """Receipts hold card/bank details: keep them in `receipts_dir`, never under public media."""
-    if order.method != "card" or order.status not in ("pending", "rejected"):
+    # "cancelled": the user opened Stars after already transferring money — the receipt still counts
+    if order.method != "card" or order.status not in ("pending", "rejected", "cancelled"):
         raise DomainError("bad_order")
     if order.museum_id is not None:
         museum = await s.get(Museum, order.museum_id)

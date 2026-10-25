@@ -46,6 +46,7 @@ Tests: `cd backend && ../.venv/Scripts/python -m pytest -q`
 | `/bepul_ochir <id\|@username>`, `/bepullar` | revoke, list |
 | `/xabar` (as a reply) | copy that message to every user |
 | `/qaytar <code>` | refund a Stars order |
+| `/cheklar` | re-send every card receipt still waiting for a decision |
 
 Card receipts arrive in the admin group with ✅ / ❌ buttons.
 
@@ -53,6 +54,7 @@ Card receipts arrive in the admin group with ✅ / ❌ buttons.
 
 ```bash
 cd deploy && cp .env.example .env && nano .env
+mkdir -p data && sudo chown 1000:1000 data   # the container runs as uid 1000
 docker compose up -d --build
 sudo tailscale funnel --bg 8000      # gives https://<host>.<tailnet>.ts.net
 ```

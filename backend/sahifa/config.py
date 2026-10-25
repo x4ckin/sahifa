@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,8 +12,8 @@ class Settings(BaseSettings):
 
     bot_token: str
     bot_username: str = "SahifaBot"
-    admin_ids: list[int] = []
-    admin_chat_id: int = 0
+    admin_ids: list[int] = Field(min_length=1)  # nobody could approve receipts otherwise
+    admin_chat_id: int  # group that receives card receipts
     database_url: str = "sqlite+aiosqlite:///./data/sahifa.db"
     media_dir: Path = Path("./data/media")
     public_api_url: str = "http://localhost:8000"

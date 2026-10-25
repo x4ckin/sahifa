@@ -63,7 +63,6 @@ async def daily_loop(rt: Runtime) -> None:
                         s, datetime.now(UTC), lambda chat, text: rt.bot.send_message(chat, text),
                         media_dir=rt.settings.media_dir,
                     )
-                    await s.commit()
                 log.info("daily jobs: %s", report)
             except Exception:
                 log.exception("daily jobs failed")
