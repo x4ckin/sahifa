@@ -10,8 +10,15 @@ export const routes: RouteRecordRaw[] = [
   { path: "/done/:id", name: "done", component: () => import("./views/Done.vue") },
   { path: "/museum/:id", name: "museum", component: () => import("./views/ServerMuseum.vue") },
   { path: "/local/:id", name: "local", component: () => import("./views/LocalMuseum.vue") },
+  { path: "/m/:slug", name: "viewer", component: () => import("./views/Viewer.vue") },
   { path: "/:pathMatch(.*)*", redirect: "/" },
 ];
+
+/** Telegram start_param → first screen (e.g. "m_<slug>" opens that gift). */
+export function initialPath(startParam: string | null): string | null {
+  const match = /^m_([A-Za-z0-9_-]{1,62})$/.exec(startParam ?? "");
+  return match ? `/m/${match[1]}` : null;
+}
 
 export function makeRouter() {
   return createRouter({ history: createWebHashHistory(), routes });
