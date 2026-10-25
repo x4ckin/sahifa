@@ -126,8 +126,12 @@ async function pay() {
   const m = museum.value;
   if (!m || busy.value || rooms.value === null) return;
   if (m.gift?.state === "paid") {
-    await router.push(`/museum/${m.gift.draft}`);
-    return;
+    const server = await serverCopy(m.gift.draft).catch(() => undefined);
+    if (server !== null) {
+      await router.push(`/museum/${m.gift.draft}`);
+      return;
+    }
+    m.gift = undefined; // the gifted copy expired and was removed: this museum can be gifted again
   }
   error.value = "";
   busy.value = t("gift.preparing");

@@ -113,6 +113,8 @@ function upload<T>(path: string, form: FormData, onProgress?: (p: number) => voi
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open(method, `${BASE}${path}`);
+    xhr.timeout = 180_000; // a stalled mobile connection must end in a retryable error, not hang the queue
+    xhr.ontimeout = () => reject(new ApiError("network", 0));
     for (const [k, v] of Object.entries(headers(false))) xhr.setRequestHeader(k, v);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);

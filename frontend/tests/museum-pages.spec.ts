@@ -100,11 +100,11 @@ describe("local museum page", () => {
     expect(router.currentRoute.value.path).toBe("/");
   });
 
-  it("a gifted museum links to its gift page", async () => {
+  it("a gifted museum goes through the gift screen, which checks the server copy", async () => {
     s.local = { ...s.local!, gift: { draft: 42, state: "paid" } };
     const { wrapper, router } = await mountView(LocalMuseumView, "/local/abc123", "/local/:id");
     await wrapper.find("[data-gift]").trigger("click");
     await flushPromises();
-    expect(router.currentRoute.value.path).toBe("/museum/42");
+    expect(router.currentRoute.value.path).toBe("/gift/abc123");
   });
 });

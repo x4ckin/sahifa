@@ -25,8 +25,7 @@ onMounted(async () => {
 const images = computed(() => museum.value?.media.filter((m) => m.k === "image") ?? []);
 
 async function gift() {
-  const g = museum.value?.gift;
-  await router.push(g?.state === "paid" ? `/museum/${g.draft}` : `/gift/${id}`);
+  await router.push(`/gift/${id}`); // the gift screen checks the server copy and routes from there
 }
 
 async function remove() {

@@ -87,8 +87,8 @@ export const tg = {
   backButton(onClick: () => void): () => void {
     const button = wa()?.BackButton;
     if (!button) return noop;
-    button.show();
     button.onClick(onClick);
+    button.show();
     return () => {
       button.offClick(onClick);
       button.hide();
