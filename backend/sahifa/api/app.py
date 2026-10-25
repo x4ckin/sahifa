@@ -39,7 +39,7 @@ def create_app(
     receipt_notifier: ReceiptNotifier,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> FastAPI:
-    from sahifa.api import routes_me, routes_museums
+    from sahifa.api import routes_me, routes_museums, routes_orders, routes_public, routes_transfers
 
     app = FastAPI(title="Sahifa API", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.settings = settings
@@ -63,8 +63,8 @@ def create_app(
     async def _domain_error(_: Request, exc: DomainError):
         return JSONResponse({"error": exc.code}, status_code=STATUS_BY_CODE.get(exc.code, 400))
 
-    for router in (routes_me.router, routes_museums.router):
-        app.include_router(router, prefix="/api")
+    for module in (routes_me, routes_museums, routes_orders, routes_transfers, routes_public):
+        app.include_router(module.router, prefix="/api")
 
     settings.media_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
