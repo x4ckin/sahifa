@@ -61,8 +61,16 @@ async def accept_transfer(s: AsyncSession, token: str, user: User, now: datetime
     transfer, museum = await get_pending(s, token, now)
     if transfer.from_user_id == user.id:
         raise DomainError("transfer_self")
+    claimed = await s.execute(
+        update(Transfer)
+        .where(Transfer.id == transfer.id, Transfer.status == "pending")
+        .values(status="accepted", to_user_id=user.id)
+        .execution_options(synchronize_session=False)
+    )
+    if claimed.rowcount != 1:  # someone else accepted it a moment ago
+        raise DomainError("transfer_invalid")
+    await s.refresh(transfer)
     museum.owner_id = user.id
     museum.updated_at = now
-    transfer.status, transfer.to_user_id = "accepted", user.id
     await audit.log(s, user.id, "transfer_accepted", museum_id=museum.id, from_user=transfer.from_user_id)
     return museum

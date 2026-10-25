@@ -3,15 +3,17 @@
 import logging
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramAPIError
 from aiogram.types import LabeledPrice, Message, PreCheckoutQuery
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sahifa.bot import texts
 from sahifa.config import Settings
 from sahifa.domain.lifecycle import DomainError
 from sahifa.domain.pricing import PRODUCT_TITLES_UZ, Product
-from sahifa.models import Order
-from sahifa.services import orders
+from sahifa.models import AuditLog, Order
+from sahifa.services import audit, orders
 
 log = logging.getLogger(__name__)
 router = Router(name="payments")
@@ -58,9 +60,33 @@ async def on_successful_payment(message: Message, session: AsyncSession, bot, se
     except DomainError as e:
         # money arrived but nothing can be granted: keep the rejection/audit, give the Stars back
         await session.commit()
-        log.warning("refunding stars charge %s: %s", charge_id, e.code)
-        await bot.refund_star_payment(user_id=message.from_user.id, telegram_payment_charge_id=charge_id)
+        await refund_once(bot, session, settings, message.from_user.id, charge_id, e.code)
         await message.answer(texts.PAYMENT_REFUNDED)
         return
     await session.commit()
     await message.answer(texts.PAID.format(product=PRODUCT_TITLES_UZ[Product(order.product)]))
+
+
+async def refund_once(bot, session: AsyncSession, settings: Settings, user_id: int, charge_id: str, reason: str) -> None:
+    """Refund a Stars charge at most once; if Telegram refuses, record it and tell the admins."""
+    done = await session.scalar(
+        select(AuditLog.id).where(
+            AuditLog.action == "stars_refund", func.json_extract(AuditLog.payload, "$.charge_id") == charge_id
+        )
+    )
+    if done is not None:
+        return
+    try:
+        await bot.refund_star_payment(user_id=user_id, telegram_payment_charge_id=charge_id)
+    except TelegramAPIError as err:
+        log.error("stars refund failed for %s: %s", charge_id, err)
+        await audit.log(session, user_id, "stars_refund_failed", charge_id=charge_id, reason=reason, error=str(err))
+        await session.commit()
+        await bot.send_message(
+            settings.admin_chat_id,
+            f"⚠️ Stars qaytarilmadi — foydalanuvchi <code>{user_id}</code>, charge <code>{charge_id}</code> ({reason}). "
+            "Qo'lda tekshiring.",
+        )
+        return
+    await audit.log(session, user_id, "stars_refund", charge_id=charge_id, reason=reason)
+    await session.commit()

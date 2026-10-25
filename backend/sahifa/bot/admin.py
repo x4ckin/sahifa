@@ -3,12 +3,12 @@
 import asyncio
 import re
 from datetime import datetime, timedelta, timezone
-from html import escape
 
 from aiogram import Router
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
 from aiogram.filters import BaseFilter, Command, CommandObject
 from aiogram.types import Message
+from aiogram.utils.text_decorations import html_decoration
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,8 @@ from sahifa.models import Museum, Order, User
 from sahifa.services import orders
 from sahifa.services.settings_store import get_price, set_cards, set_price
 from sahifa.services.users import find_user, grant_free, list_free, revoke_free
+
+escape = html_decoration.quote  # &, <, > only — apostrophes in names stay readable
 
 TASHKENT = timezone(timedelta(hours=5))
 router = Router(name="admin")

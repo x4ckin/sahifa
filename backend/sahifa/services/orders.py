@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sahifa.domain.lifecycle import DomainError, MuseumState, activation_window, reactivated_expiry
@@ -17,6 +17,7 @@ from sahifa.services.users import is_free_now
 
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O/1/I — read aloud from a receipt
 OPEN_STATUSES = ("pending", "awaiting_review")
+CLAIMABLE = OPEN_STATUSES  # states a payment may complete
 
 # which museum states each product may be bought for
 _MUSEUM_STATES: dict[Product, set[str]] = {
@@ -118,41 +119,74 @@ async def fulfil(
     If the museum is gone the order is marked rejected (flushed) and DomainError("museum_gone")
     is raised — callers commit before reporting it.
     """
-    if order.status == "paid" and not (charge_id and order.charge_id and charge_id != order.charge_id):
-        return order  # the same payment delivered again
-    if order.status in ("paid", "refunded"):
-        # a second, different charge for one order: grant nothing, caller refunds it
-        await audit.log(s, order.user_id, "duplicate_payment", code=order.code, charge_id=charge_id)
-        raise DomainError("duplicate_payment")
-    product = Product(order.product)
+    if charge_id and charge_id == order.charge_id:
+        return order  # Telegram delivered the same payment again
+    if order.status not in CLAIMABLE:
+        if order.status == "paid" and charge_id is None:
+            return order  # e.g. an admin tapping "approve" twice
+        return await _duplicate(s, order, charge_id)
 
-    if product == Product.SLOTS:
-        user = await s.get(User, order.user_id)
-        user.extra_slots += SLOT_PACK
-    else:
+    museum = None
+    if Product(order.product) != Product.SLOTS:
         museum = await s.get(Museum, order.museum_id)
         if museum is None or museum.status == MuseumState.DELETED:
             order.status, order.reject_reason, order.admin_id = "rejected", "museum_gone", admin_id
             await s.flush()
             raise DomainError("museum_gone")
-        if product == Product.ROOM:
-            museum.extra_rooms += 1
-        elif product == Product.MUSEUM and museum.paid_at is None:
-            open_at = museum.open_at if museum.open_at and museum.open_at > now else None
-            museum.active_from, museum.expires_at = activation_window(now, open_at)
-            museum.paid_at, museum.status = now, MuseumState.ACTIVE
-        elif order.method == "free":  # free users renew to now+120d, never stack
-            museum.expires_at = max(museum.expires_at or now, activation_window(now, None)[1])
-        else:  # REACTIVATE, or a museum payment that raced an earlier one: extend
-            museum.expires_at = reactivated_expiry(now, museum.expires_at)
-            museum.status = MuseumState.ACTIVE
-        museum.updated_at = now
 
-    order.status, order.paid_at = "paid", now
-    order.charge_id = charge_id or order.charge_id
-    order.admin_id = admin_id or order.admin_id
-    await audit.log(s, admin_id or order.user_id, "order_paid", code=order.code, product=product)
+    # claim the order atomically: of two concurrent payments only one moves it out of CLAIMABLE
+    claimed = await s.execute(
+        update(Order)
+        .where(Order.id == order.id, Order.status.in_(CLAIMABLE))
+        .values(status="paid", paid_at=now, charge_id=charge_id, admin_id=admin_id)
+        .execution_options(synchronize_session=False)
+    )
+    await s.refresh(order)
+    if claimed.rowcount != 1:
+        if (charge_id and order.charge_id == charge_id) or (order.status == "paid" and charge_id is None):
+            return order
+        return await _duplicate(s, order, charge_id)
+
+    await _grant(s, order, museum, now)
+    await audit.log(s, admin_id or order.user_id, "order_paid", code=order.code, product=order.product)
     return order
+
+
+async def _duplicate(s: AsyncSession, order: Order, charge_id: str | None) -> Order:
+    """A second, different charge for one order: grant nothing, the caller refunds it."""
+    await audit.log(s, order.user_id, "duplicate_payment", code=order.code, charge_id=charge_id)
+    raise DomainError("duplicate_payment")
+
+
+async def _grant(s: AsyncSession, order: Order, museum: Museum | None, now: datetime) -> None:
+    product = Product(order.product)
+    if product == Product.SLOTS:
+        user = await s.get(User, order.user_id)
+        await s.execute(
+            update(User).where(User.id == user.id).values(extra_slots=User.extra_slots + SLOT_PACK)
+            .execution_options(synchronize_session=False)
+        )
+        await s.refresh(user)
+        return
+    await s.refresh(museum)  # we hold the write lock now: read the latest state
+    if product == Product.ROOM:
+        await s.execute(
+            update(Museum).where(Museum.id == museum.id).values(extra_rooms=Museum.extra_rooms + 1)
+            .execution_options(synchronize_session=False)
+        )
+        await s.refresh(museum)
+    elif product == Product.MUSEUM and museum.paid_at is None:
+        open_at = museum.open_at if museum.open_at and museum.open_at > now else None
+        museum.active_from, museum.expires_at = activation_window(now, open_at)
+        museum.paid_at, museum.status = now, MuseumState.ACTIVE
+    elif order.method == "free":  # free users renew to now+120d, never stack
+        museum.expires_at = max(museum.expires_at or now, activation_window(now, None)[1])
+        museum.status = MuseumState.ACTIVE
+    else:  # REACTIVATE, or a museum payment that raced an earlier one: extend
+        museum.expires_at = reactivated_expiry(now, museum.expires_at)
+        museum.status = MuseumState.ACTIVE
+    museum.updated_at = now
+    await s.flush()
 
 
 async def attach_receipt(

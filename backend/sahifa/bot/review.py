@@ -1,10 +1,10 @@
 """Card-transfer receipts: send to the admin chat, approve or reject with one tap."""
 
 from collections.abc import Awaitable, Callable
-from html import escape
 
 from aiogram import F, Router
 from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.text_decorations import html_decoration
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from sahifa.bot import texts
@@ -14,6 +14,8 @@ from sahifa.domain.lifecycle import DomainError
 from sahifa.domain.pricing import PRODUCT_TITLES_UZ, Product
 from sahifa.models import Museum, Order, User
 from sahifa.services import orders
+
+escape = html_decoration.quote  # &, <, > only — apostrophes in names stay readable
 
 router = Router(name="review")
 
