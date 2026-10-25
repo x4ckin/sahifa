@@ -1,0 +1,9 @@
+.venv/
+out/
+userbot_session*
+.superpowers/
+backend/data/
+__pycache__/
+*.pyc
+.env
+.pytest_cache/
